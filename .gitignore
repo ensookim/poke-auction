@@ -1,0 +1,11 @@
+﻿# Ignore nested mobile app repo
+apps/mobile/
+
+# Ignore node and build artifacts
+**/node_modules/
+**/build/
+**/.gradle/
+**/out/
+**/.expo/
+**/dist/
+**/web-build/
