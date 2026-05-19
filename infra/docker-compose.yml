@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: poke-auction-postgres
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: poke_auction
+      POSTGRES_USER: poke_user
+      POSTGRES_PASSWORD: poke_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
