@@ -135,11 +135,6 @@ class AuthService {
     return response.data;
   }
 
-  async devLogin(): Promise<LoginResponse> {
-    const response = await this.client.post<LoginResponse>('/api/dev/login');
-    return response.data;
-  }
-
   /**
    * 리디렉트 URI를 반환합니다.
    */
