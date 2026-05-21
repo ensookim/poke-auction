@@ -26,16 +26,19 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import { palette, shadow, typography } from '@/constants/ui';
 
 export default function BuyScreen() {
-  const params = useLocalSearchParams<{ category?: AuctionCategoryKey }>();
+  const params = useLocalSearchParams<{ category?: AuctionCategoryKey; q?: string }>();
   const { isLoading, isSignedIn } = useAuth();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<AuctionCategoryKey>(
     params.category ?? 'ALL',
   );
   const [sort, setSort] = useState<AuctionSortKey>('hot');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(params.q ?? '');
+  const [buyNowOnly, setBuyNowOnly] = useState(false);
+  const [endingTodayOnly, setEndingTodayOnly] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
 
   const loadAuctions = useCallback(async () => {
@@ -67,11 +70,25 @@ export default function BuyScreen() {
     if (params.category) {
       setSelectedCategory(params.category);
     }
-  }, [params.category]);
+    if (typeof params.q === 'string') {
+      setQuery(params.q);
+    }
+  }, [params.category, params.q]);
 
   const visibleAuctions = useMemo(() => {
     const searched = auctions.filter((auction) => {
       const keyword = query.trim().toLowerCase();
+      if (buyNowOnly && !auction.buyNowPrice) {
+        return false;
+      }
+
+      if (
+        endingTodayOnly &&
+        new Date(auction.endAt).getTime() - Date.now() > 24 * 60 * 60 * 1000
+      ) {
+        return false;
+      }
+
       if (!keyword) {
         return true;
       }
@@ -82,7 +99,7 @@ export default function BuyScreen() {
     });
 
     return sortAuctions(searched, sort);
-  }, [auctions, query, sort]);
+  }, [auctions, buyNowOnly, endingTodayOnly, query, sort]);
 
   if (isLoading || isFetching) {
     return (
@@ -104,9 +121,9 @@ export default function BuyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.eyebrow}>MARKET</ThemedText>
+          <ThemedText style={styles.eyebrow}>SEARCH</ThemedText>
           <ThemedText type="title" style={styles.title}>
-            카드 찾기
+            탐색
           </ThemedText>
         </View>
 
@@ -119,6 +136,56 @@ export default function BuyScreen() {
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
           />
+        </View>
+
+        <View style={styles.filterCards}>
+          <Pressable
+            style={[styles.filterCard, buyNowOnly && styles.filterCardActive]}
+            onPress={() => setBuyNowOnly((value) => !value)}
+          >
+            <Ionicons
+              name="flash"
+              size={18}
+              color={buyNowOnly ? '#FFFFFF' : palette.brand}
+            />
+            <View style={styles.filterCopy}>
+              <ThemedText
+                style={[styles.filterTitle, buyNowOnly && styles.filterTitleActive]}
+              >
+                즉시 낙찰
+              </ThemedText>
+              <ThemedText
+                style={[styles.filterMeta, buyNowOnly && styles.filterMetaActive]}
+              >
+                바로 구매 가능한 카드
+              </ThemedText>
+            </View>
+          </Pressable>
+          <Pressable
+            style={[styles.filterCard, endingTodayOnly && styles.filterCardActive]}
+            onPress={() => setEndingTodayOnly((value) => !value)}
+          >
+            <Ionicons
+              name="timer"
+              size={18}
+              color={endingTodayOnly ? '#FFFFFF' : palette.brand}
+            />
+            <View style={styles.filterCopy}>
+              <ThemedText
+                style={[
+                  styles.filterTitle,
+                  endingTodayOnly && styles.filterTitleActive,
+                ]}
+              >
+                24시간 내 마감
+              </ThemedText>
+              <ThemedText
+                style={[styles.filterMeta, endingTodayOnly && styles.filterMetaActive]}
+              >
+                마지막 입찰 기회
+              </ThemedText>
+            </View>
+          </Pressable>
         </View>
 
         <ScrollView
@@ -234,10 +301,19 @@ export default function BuyScreen() {
                       </View>
                     </View>
                     {auction.buyNowPrice ? (
-                      <ThemedText style={styles.buyNowText}>
-                        즉시 낙찰 {formatPrice(auction.buyNowPrice)}
-                      </ThemedText>
+                      <View style={styles.buyNowPill}>
+                        <Ionicons name="flash" size={13} color={palette.brandDark} />
+                        <ThemedText style={styles.buyNowText}>
+                          즉시 {formatPrice(auction.buyNowPrice)}
+                        </ThemedText>
+                      </View>
                     ) : null}
+                    <View style={styles.cardActionRow}>
+                      <ThemedText style={styles.safeTradeText}>안전거래 가능</ThemedText>
+                      <View style={styles.detailButton}>
+                        <ThemedText style={styles.detailButtonText}>상세보기</ThemedText>
+                      </View>
+                    </View>
                   </View>
                 </Pressable>
               );
@@ -252,7 +328,7 @@ export default function BuyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: palette.canvas,
   },
   centered: {
     flex: 1,
@@ -273,7 +349,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   eyebrow: {
-    color: '#EF4444',
+    color: palette.brand,
     fontSize: 12,
     fontWeight: '900',
     marginBottom: 4,
@@ -286,8 +362,8 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -295,9 +371,50 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 14,
   },
+  filterCards: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  filterCard: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  filterCardActive: {
+    backgroundColor: palette.ink,
+    borderColor: palette.ink,
+  },
+  filterCopy: {
+    flex: 1,
+  },
+  filterTitle: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  filterTitleActive: {
+    color: '#FFFFFF',
+  },
+  filterMeta: {
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  filterMetaActive: {
+    color: '#CBD5E1',
+  },
   searchInput: {
     color: '#111827',
     flex: 1,
+    fontFamily: typography.family,
     fontSize: 15,
     height: 48,
   },
@@ -364,12 +481,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   auctionCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
     overflow: 'hidden',
+    ...shadow,
   },
   auctionImageFrame: {
     alignItems: 'center',
@@ -454,11 +572,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  buyNowPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF1F2',
+    borderRadius: 6,
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
   buyNowText: {
-    color: '#BE123C',
+    color: palette.brandDark,
     fontSize: 12,
     fontWeight: '900',
-    marginTop: 10,
+  },
+  cardActionRow: {
+    alignItems: 'center',
+    borderTopColor: palette.line,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  safeTradeText: {
+    color: palette.success,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  detailButton: {
+    backgroundColor: palette.ink,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  detailButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
   },
   emptyState: {
     alignItems: 'center',

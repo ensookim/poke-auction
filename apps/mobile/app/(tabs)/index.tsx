@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -12,20 +13,29 @@ import { Ionicons } from '@expo/vector-icons';
 
 import {
   AUCTION_CATEGORIES,
+  AuctionCategoryKey,
   formatPrice,
   formatRemainingTime,
   getCategoryMeta,
   sortAuctions,
 } from '@/constants/auction';
+import { palette, shadow, typography } from '@/constants/ui';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 
+const visibleCategories = AUCTION_CATEGORIES.filter(
+  (category) => category.key !== 'ALL',
+);
+
 export default function HomeScreen() {
   const { user, isLoading, isSignedIn } = useAuth();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [isFetching, setIsFetching] = useState(true);
+  const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] =
+    useState<AuctionCategoryKey>('ALL');
 
   const loadAuctions = useCallback(async () => {
     setIsFetching(true);
@@ -44,16 +54,48 @@ export default function HomeScreen() {
     loadAuctions();
   }, [loadAuctions]);
 
-  const heroAuction = useMemo(() => auctions[0] ?? null, [auctions]);
-  const endingSoon = useMemo(
-    () => sortAuctions(auctions, 'ending').slice(0, 4),
+  const filteredAuctions = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    const filtered = auctions.filter((auction) => {
+      if (
+        selectedCategory !== 'ALL' &&
+        auction.cardCategory !== selectedCategory
+      ) {
+        return false;
+      }
+
+      if (!keyword) {
+        return true;
+      }
+
+      return [auction.cardName, auction.cardRarity, auction.cardDescription]
+        .filter(Boolean)
+        .some((text) => text.toLowerCase().includes(keyword));
+    });
+
+    return sortAuctions(filtered, 'hot').slice(0, 8);
+  }, [auctions, query, selectedCategory]);
+
+  const endingSoonCount = useMemo(
+    () =>
+      auctions.filter(
+        (auction) =>
+          new Date(auction.endAt).getTime() - Date.now() <= 24 * 60 * 60 * 1000,
+      ).length,
     [auctions],
   );
+
+  const handleSubmitSearch = () => {
+    router.push({
+      pathname: '/buy',
+      params: { q: query, category: selectedCategory },
+    } as any);
+  };
 
   if (isLoading || isFetching) {
     return (
       <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" color="#EF4444" />
+        <ActivityIndicator size="large" color={palette.brand} />
       </ThemedView>
     );
   }
@@ -71,28 +113,69 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View>
-            <ThemedText style={styles.eyebrow}>POKE AUCTION</ThemedText>
-            <ThemedText type="title" style={styles.title}>
-              오늘의 카드 경매
-            </ThemedText>
+            <ThemedText style={styles.brand}>POKE AUCTION</ThemedText>
+            <ThemedText style={styles.greeting}>{user.nickname}님</ThemedText>
           </View>
-          <Pressable style={styles.iconButton} onPress={() => router.push('/sell')}>
-            <Ionicons name="add" size={24} color="#111827" />
+          <View style={styles.headerActions}>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/messages')}>
+              <Ionicons name="chatbubble-ellipses" size={21} color={palette.ink} />
+            </Pressable>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/sell')}>
+              <Ionicons name="add" size={24} color={palette.ink} />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={20} color={palette.subtle} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={handleSubmitSearch}
+            placeholder="카드명, 등급, 희귀도 검색"
+            placeholderTextColor={palette.subtle}
+            returnKeyType="search"
+            style={styles.searchInput}
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery('')}>
+              <Ionicons name="close-circle" size={19} color={palette.subtle} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.quickRow}>
+          <Pressable style={styles.quickCard} onPress={() => router.push('/buy')}>
+            <Ionicons name="search" size={19} color={palette.brand} />
+            <View style={styles.quickCopy}>
+              <ThemedText style={styles.quickTitle}>탐색</ThemedText>
+              <ThemedText style={styles.quickMeta}>필터로 찾기</ThemedText>
+            </View>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push('/sell')}>
+            <Ionicons name="camera" size={19} color={palette.brand} />
+            <View style={styles.quickCopy}>
+              <ThemedText style={styles.quickTitle}>등록</ThemedText>
+              <ThemedText style={styles.quickMeta}>경매 열기</ThemedText>
+            </View>
+          </Pressable>
+          <Pressable style={styles.quickCard} onPress={() => router.push('/my' as any)}>
+            <Ionicons name="person-circle" size={19} color={palette.brand} />
+            <View style={styles.quickCopy}>
+              <ThemedText style={styles.quickTitle}>MY</ThemedText>
+              <ThemedText style={styles.quickMeta}>활동관리</ThemedText>
+            </View>
           </Pressable>
         </View>
 
-        <View style={styles.welcomeBand}>
-          <View style={styles.welcomeCopy}>
-            <ThemedText style={styles.welcomeName}>
-              {user.nickname}님을 위한 추천
-            </ThemedText>
-            <ThemedText style={styles.welcomeText}>
-              마감 임박, 인기 카드, 미개봉 상품을 빠르게 둘러보세요.
-            </ThemedText>
+        <View style={styles.signalBand}>
+          <View>
+            <ThemedText style={styles.signalLabel}>실시간 경매</ThemedText>
+            <ThemedText style={styles.signalValue}>{auctions.length}개 진행중</ThemedText>
           </View>
-          <View style={styles.statPill}>
-            <ThemedText style={styles.statNumber}>{auctions.length}</ThemedText>
-            <ThemedText style={styles.statLabel}>진행중</ThemedText>
+          <View style={styles.signalRight}>
+            <Ionicons name="timer" size={16} color={palette.warning} />
+            <ThemedText style={styles.signalText}>24시간 내 {endingSoonCount}개</ThemedText>
           </View>
         </View>
 
@@ -101,119 +184,113 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryRail}
         >
-          {AUCTION_CATEGORIES.map((category) => (
-            <Pressable
-              key={category.key}
-              style={[styles.categoryCard, { backgroundColor: category.background }]}
-              onPress={() =>
-                router.push({
-                  pathname: '/buy',
-                  params: { category: category.key },
-                })
-              }
+          <Pressable
+            style={[
+              styles.categoryChip,
+              selectedCategory === 'ALL' && styles.categoryChipActive,
+            ]}
+            onPress={() => setSelectedCategory('ALL')}
+          >
+            <ThemedText
+              style={[
+                styles.categoryChipText,
+                selectedCategory === 'ALL' && styles.categoryChipTextActive,
+              ]}
             >
-              <ThemedText style={[styles.categoryLabel, { color: category.tint }]}>
-                {category.label}
-              </ThemedText>
-              <ThemedText style={styles.categorySubtitle}>
-                {category.subtitle}
-              </ThemedText>
-            </Pressable>
-          ))}
+              전체
+            </ThemedText>
+          </Pressable>
+          {visibleCategories.map((category) => {
+            const active = selectedCategory === category.key;
+            return (
+              <Pressable
+                key={category.key}
+                style={[
+                  styles.categoryChip,
+                  active && {
+                    backgroundColor: category.tint,
+                    borderColor: category.tint,
+                  },
+                ]}
+                onPress={() => setSelectedCategory(category.key)}
+              >
+                <Ionicons
+                  name={category.icon as any}
+                  size={14}
+                  color={active ? '#FFFFFF' : category.tint}
+                />
+                <ThemedText
+                  style={[styles.categoryChipText, active && styles.categoryChipTextActive]}
+                >
+                  {category.label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
-        {heroAuction ? (
-          <Pressable
-            style={styles.heroCard}
-            onPress={() => router.push(`/auctions/${heroAuction.id}`)}
-          >
-            <View style={styles.heroImageFrame}>
-              <ThemedText style={styles.artMark}>
-                {heroAuction.cardName.slice(0, 2)}
-              </ThemedText>
-              <Image
-                source={{ uri: heroAuction.imageUrl }}
-                style={styles.heroImage}
-                contentFit="contain"
-                transition={180}
-              />
-            </View>
-            <View style={styles.heroContent}>
-              <View style={styles.heroTopline}>
-                <ThemedText style={styles.heroBadge}>
-                  {getCategoryMeta(heroAuction.cardCategory).label}
-                </ThemedText>
-                <ThemedText style={styles.heroTime}>
-                  {formatRemainingTime(heroAuction.endAt)}
-                </ThemedText>
-              </View>
-              <ThemedText type="subtitle" style={styles.heroTitle}>
-                {heroAuction.cardName}
-              </ThemedText>
-              <View style={styles.heroFooter}>
-                <View>
-                  <ThemedText style={styles.muted}>현재가</ThemedText>
-                  <ThemedText style={styles.heroPrice}>
-                    {formatPrice(heroAuction.currentPrice)}
-                  </ThemedText>
-                </View>
-                <View style={styles.bidBadge}>
-                  <Ionicons name="flash" size={15} color="#EF4444" />
-                  <ThemedText style={styles.bidBadgeText}>
-                    {heroAuction.bidCount} bids
-                  </ThemedText>
-                </View>
-              </View>
-            </View>
-          </Pressable>
-        ) : (
-          <View style={styles.emptyBlock}>
-            <ThemedText style={styles.emptyTitle}>진행중인 경매가 없어요</ThemedText>
-            <ThemedText style={styles.emptyText}>
-              첫 포켓몬 카드를 등록해서 시장을 열어보세요.
-            </ThemedText>
-          </View>
-        )}
-
         <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>마감 임박</ThemedText>
+          <ThemedText style={styles.sectionTitle}>진행중인 카드</ThemedText>
           <Pressable onPress={() => router.push('/buy')}>
             <ThemedText style={styles.linkText}>전체보기</ThemedText>
           </Pressable>
         </View>
 
-        <View style={styles.compactList}>
-          {endingSoon.map((auction) => (
-            <Pressable
-              key={auction.id}
-              style={styles.compactItem}
-              onPress={() => router.push(`/auctions/${auction.id}`)}
-            >
-              <View style={styles.compactImageFrame}>
-                <ThemedText style={styles.compactArtMark}>
-                  {auction.cardName.slice(0, 1)}
-                </ThemedText>
-                <Image
-                  source={{ uri: auction.imageUrl }}
-                  style={styles.compactImage}
-                  contentFit="contain"
-                />
-              </View>
-              <View style={styles.compactBody}>
-                <ThemedText style={styles.compactTitle} numberOfLines={1}>
-                  {auction.cardName}
-                </ThemedText>
-                <ThemedText style={styles.compactMeta}>
-                  {getCategoryMeta(auction.cardCategory).label} ·{' '}
-                  {formatRemainingTime(auction.endAt)}
-                </ThemedText>
-              </View>
-              <ThemedText style={styles.compactPrice}>
-                {formatPrice(auction.currentPrice)}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
+        {filteredAuctions.length === 0 ? (
+          <View style={styles.emptyBlock}>
+            <ThemedText style={styles.emptyTitle}>검색 결과가 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>다른 카드명이나 카테고리로 찾아보세요.</ThemedText>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {filteredAuctions.map((auction) => {
+              const category = getCategoryMeta(auction.cardCategory);
+              return (
+                <Pressable
+                  key={auction.id}
+                  style={styles.gridCard}
+                  onPress={() => router.push(`/auctions/${auction.id}`)}
+                >
+                  <View style={styles.gridImageFrame}>
+                    <ThemedText style={styles.artMark}>
+                      {auction.cardName.slice(0, 1)}
+                    </ThemedText>
+                    <Image
+                      source={{ uri: auction.imageUrl }}
+                      style={styles.gridImage}
+                      contentFit="contain"
+                      transition={150}
+                    />
+                    {auction.buyNowPrice ? (
+                      <View style={styles.buyNowBadge}>
+                        <Ionicons name="flash" size={12} color="#FFFFFF" />
+                      </View>
+                    ) : null}
+                  </View>
+                  <View style={styles.gridBody}>
+                    <View style={styles.gridMetaRow}>
+                      <ThemedText style={[styles.gridCategory, { color: category.tint }]}>
+                        {category.label}
+                      </ThemedText>
+                      <ThemedText style={styles.gridTime}>
+                        {formatRemainingTime(auction.endAt)}
+                      </ThemedText>
+                    </View>
+                    <ThemedText style={styles.gridTitle} numberOfLines={2}>
+                      {auction.cardName}
+                    </ThemedText>
+                    <View style={styles.gridFooter}>
+                      <ThemedText style={styles.gridPrice}>
+                        {formatPrice(auction.currentPrice)}
+                      </ThemedText>
+                      <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -222,213 +299,166 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: palette.canvas,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F6F7F9',
+    backgroundColor: palette.canvas,
   },
   scroller: {
     alignSelf: 'center',
-    maxWidth: 520,
+    maxWidth: 560,
     width: '100%',
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 18,
+    paddingBottom: 38,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 14,
   },
-  eyebrow: {
-    color: '#EF4444',
+  brand: {
+    color: palette.brand,
     fontSize: 12,
-    fontWeight: '800',
-  },
-  title: {
-    color: '#111827',
-    fontSize: 30,
     fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 36,
-    marginTop: 4,
+    marginBottom: 4,
+  },
+  greeting: {
+    color: palette.ink,
+    fontSize: 23,
+    fontWeight: '900',
+    lineHeight: 29,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   iconButton: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderRadius: 18,
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
     borderWidth: 1,
-    height: 44,
+    height: 42,
     justifyContent: 'center',
-    width: 44,
+    width: 42,
   },
-  welcomeBand: {
+  searchBox: {
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-    padding: 18,
-  },
-  welcomeCopy: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  welcomeName: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  welcomeText: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  statPill: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    minWidth: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  statNumber: {
-    color: '#111827',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  statLabel: {
-    color: '#6B7280',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  categoryRail: {
     gap: 10,
-    paddingBottom: 18,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    ...shadow,
   },
-  categoryCard: {
-    borderRadius: 8,
-    minWidth: 132,
-    padding: 14,
+  searchInput: {
+    color: palette.ink,
+    flex: 1,
+    fontFamily: typography.family,
+    fontSize: 16,
+    fontWeight: '700',
+    height: 50,
   },
-  categoryLabel: {
-    fontSize: 15,
-    fontWeight: '900',
-    marginBottom: 6,
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
   },
-  categorySubtitle: {
-    color: '#4B5563',
-    fontSize: 12,
-  },
-  heroCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+  quickCard: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    marginBottom: 22,
-    overflow: 'hidden',
-  },
-  heroImageFrame: {
-    alignItems: 'center',
-    backgroundColor: '#EEF2F7',
-    height: 230,
-    justifyContent: 'center',
-    position: 'relative',
-    width: '100%',
-  },
-  artMark: {
-    color: '#CBD5E1',
-    fontSize: 52,
-    fontWeight: '900',
-    position: 'relative',
-    zIndex: 1,
-  },
-  heroImage: {
-    height: '100%',
-    position: 'absolute',
-    width: '100%',
-  },
-  heroContent: {
-    padding: 18,
-  },
-  heroTopline: {
-    alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: 8,
+    minHeight: 58,
+    paddingHorizontal: 10,
   },
-  heroBadge: {
-    color: '#EF4444',
-    fontSize: 12,
+  quickCopy: {
+    flex: 1,
+  },
+  quickTitle: {
+    color: palette.ink,
+    fontSize: 13,
     fontWeight: '900',
-  },
-  heroTime: {
-    color: '#6B7280',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  heroTitle: {
-    color: '#111827',
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
-    marginBottom: 18,
-  },
-  heroFooter: {
-    alignItems: 'flex-end',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  muted: {
-    color: '#6B7280',
-    fontSize: 12,
     marginBottom: 2,
   },
-  heroPrice: {
-    color: '#111827',
-    fontSize: 22,
-    fontWeight: '900',
+  quickMeta: {
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: '700',
   },
-  bidBadge: {
+  signalBand: {
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: palette.night,
     borderRadius: 8,
     flexDirection: 'row',
-    gap: 4,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    padding: 15,
+  },
+  signalLabel: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  signalValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  signalRight: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  bidBadgeText: {
-    color: '#991B1B',
+  signalText: {
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
   },
-  emptyBlock: {
+  categoryRail: {
+    gap: 8,
+    paddingBottom: 16,
+  },
+  categoryChip: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    marginBottom: 22,
-    padding: 24,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
   },
-  emptyTitle: {
-    color: '#111827',
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 6,
+  categoryChipActive: {
+    backgroundColor: palette.ink,
+    borderColor: palette.ink,
   },
-  emptyText: {
-    color: '#6B7280',
+  categoryChipText: {
+    color: '#4B5563',
     fontSize: 13,
+    fontWeight: '900',
+  },
+  categoryChipTextActive: {
+    color: '#FFFFFF',
   },
   sectionHeader: {
     alignItems: 'center',
@@ -437,67 +467,118 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    color: '#111827',
-    fontSize: 19,
+    color: palette.ink,
+    fontSize: 18,
     fontWeight: '900',
   },
   linkText: {
-    color: '#EF4444',
+    color: palette.brand,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
   },
-  compactList: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
-  compactItem: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
+  gridCard: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    flexDirection: 'row',
-    padding: 12,
+    overflow: 'hidden',
+    width: '48.5%',
   },
-  compactImageFrame: {
+  gridImageFrame: {
     alignItems: 'center',
+    aspectRatio: 0.86,
     backgroundColor: '#F3F4F6',
-    borderRadius: 6,
-    height: 56,
     justifyContent: 'center',
-    marginRight: 12,
     overflow: 'hidden',
     position: 'relative',
-    width: 56,
+    width: '100%',
   },
-  compactArtMark: {
+  artMark: {
     color: '#CBD5E1',
-    fontSize: 22,
+    fontSize: 36,
     fontWeight: '900',
     position: 'relative',
     zIndex: 1,
   },
-  compactImage: {
+  gridImage: {
     height: '100%',
     position: 'absolute',
     width: '100%',
   },
-  compactBody: {
-    flex: 1,
-    paddingRight: 8,
+  buyNowBadge: {
+    alignItems: 'center',
+    backgroundColor: palette.brand,
+    borderRadius: 6,
+    height: 25,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 9,
+    top: 9,
+    width: 25,
+    zIndex: 3,
   },
-  compactTitle: {
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
+  gridBody: {
+    padding: 11,
   },
-  compactMeta: {
-    color: '#6B7280',
-    fontSize: 12,
+  gridMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 7,
   },
-  compactPrice: {
-    color: '#111827',
-    fontSize: 14,
+  gridCategory: {
+    fontSize: 11,
     fontWeight: '900',
+  },
+  gridTime: {
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  gridTitle: {
+    color: palette.ink,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+    minHeight: 40,
+  },
+  gridFooter: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  gridPrice: {
+    color: palette.ink,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  gridBid: {
+    color: palette.muted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 24,
+  },
+  emptyTitle: {
+    color: palette.ink,
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  emptyText: {
+    color: palette.muted,
+    fontSize: 13,
   },
 });

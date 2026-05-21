@@ -8,6 +8,7 @@ export const AUCTION_CATEGORIES: {
   subtitle: string;
   tint: string;
   background: string;
+  icon: string;
 }[] = [
   {
     key: 'ALL',
@@ -15,6 +16,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '오늘 열린 경매',
     tint: '#111827',
     background: '#F2F4F7',
+    icon: 'grid',
   },
   {
     key: 'SINGLE',
@@ -22,6 +24,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '실전/수집 단품',
     tint: '#0F766E',
     background: '#E7F7F3',
+    icon: 'albums',
   },
   {
     key: 'SEALED',
@@ -29,6 +32,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '팩/박스/세트',
     tint: '#A16207',
     background: '#FFF4D6',
+    icon: 'cube',
   },
   {
     key: 'GRADED',
@@ -36,6 +40,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: 'PSA/BGS 인증',
     tint: '#6D28D9',
     background: '#F0E7FF',
+    icon: 'ribbon',
   },
   {
     key: 'PROMO',
@@ -43,6 +48,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '한정/이벤트',
     tint: '#BE123C',
     background: '#FFE5EC',
+    icon: 'sparkles',
   },
 ];
 
@@ -52,6 +58,16 @@ export const SORT_OPTIONS = [
   { key: 'new', label: '최신순' },
   { key: 'cheap', label: '낮은 가격' },
 ] as const;
+
+export const TRUST_BADGES = [
+  { icon: 'shield-checkmark', label: '안전거래' },
+  { icon: 'chatbubbles', label: '1:1 문의' },
+  { icon: 'time', label: '마감 알림' },
+] as const;
+
+export const CONDITION_OPTIONS = ['미개봉', '민트', '상급', '플레이용'] as const;
+
+export const LANGUAGE_OPTIONS = ['한국어', '일본어', '영어', '기타'] as const;
 
 export type AuctionSortKey = (typeof SORT_OPTIONS)[number]['key'];
 
