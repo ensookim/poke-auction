@@ -1,0 +1,35 @@
+package com.pokeauction.auction.api.chat.dto;
+
+import lombok.Builder;
+import lombok.Getter;
+
+@Getter
+@Builder
+public class ChatSocketEvent {
+
+    private String type;
+    private Long roomId;
+    private ChatMessageResponse message;
+    private String error;
+
+    public static ChatSocketEvent message(ChatMessageResponse message) {
+        return ChatSocketEvent.builder()
+                .type("MESSAGE")
+                .message(message)
+                .build();
+    }
+
+    public static ChatSocketEvent joined(Long roomId) {
+        return ChatSocketEvent.builder()
+                .type("JOINED")
+                .roomId(roomId)
+                .build();
+    }
+
+    public static ChatSocketEvent error(String error) {
+        return ChatSocketEvent.builder()
+                .type("ERROR")
+                .error(error)
+                .build();
+    }
+}
