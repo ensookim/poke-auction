@@ -74,4 +74,16 @@ public class User {
         this.restrictedUntil = LocalDateTime.now().plusYears(100);
         this.role = "BANNED";
     }
+
+    public boolean isBidRestrictedNow() {
+        if ("BANNED".equals(this.role)) {
+            return true;
+        }
+
+        if (!this.bidRestricted) {
+            return false;
+        }
+
+        return this.restrictedUntil == null || this.restrictedUntil.isAfter(LocalDateTime.now());
+    }
 }

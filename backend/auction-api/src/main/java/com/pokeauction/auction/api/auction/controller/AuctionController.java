@@ -24,8 +24,12 @@ public class AuctionController {
     private final JwtProvider jwtProvider;
 
     @GetMapping
-    public List<AuctionResponse> listAuctions() {
-        return auctionService.listAuctions();
+    public List<AuctionResponse> listAuctions(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false, defaultValue = "hot") String sort,
+            @RequestParam(required = false, defaultValue = "true") boolean activeOnly
+    ) {
+        return auctionService.listAuctions(category, sort, activeOnly);
     }
 
     @PostMapping

@@ -30,6 +30,8 @@ public class Auction {
 
     private String cardRarity;
 
+    private String cardCategory;
+
     private String imageUrl;
 
     private Long startingPrice;

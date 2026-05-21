@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.util.Comparator;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -25,23 +27,32 @@ public class AuctionService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<AuctionResponse> listAuctions() {
+    public List<AuctionResponse> listAuctions(String category, String sort, boolean activeOnly) {
+        String normalizedCategory = normalizeCategory(category);
+
         return auctionRepository.findAll().stream()
+                .filter(auction -> !activeOnly || auction.isActive())
+                .filter(auction -> normalizedCategory == null || normalizedCategory.equals(auction.getCardCategory()))
+                .sorted(resolveAuctionComparator(sort))
                 .map(AuctionResponse::from)
                 .toList();
     }
 
     @Transactional
     public AuctionResponse createAuction(CreateAuctionRequest request, Long creatorId) {
+        validateCreateAuctionRequest(request);
+
         User creator = null;
         if (creatorId != null) {
-            creator = userRepository.findById(creatorId).orElse(null);
+            creator = userRepository.findById(creatorId)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
         }
 
         Auction auction = Auction.builder()
                 .cardName(request.getCardName())
                 .cardDescription(request.getCardDescription())
                 .cardRarity(request.getCardRarity())
+                .cardCategory(normalizeCategoryOrDefault(request.getCardCategory()))
                 .imageUrl(request.getImageUrl())
                 .startingPrice(request.getStartingPrice())
                 .currentPrice(request.getStartingPrice())
@@ -57,6 +68,10 @@ public class AuctionService {
 
     @Transactional
     public AuctionResponse placeBid(Long auctionId, Long bidderId, Long amount, String ipAddress, String deviceId, String userAgent) {
+        if (amount == null) {
+            throw new IllegalArgumentException("입찰 금액은 필수입니다.");
+        }
+
         Auction auction = auctionRepository.findByIdForUpdate(auctionId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
 
@@ -74,6 +89,10 @@ public class AuctionService {
 
         User bidder = userRepository.findById(bidderId)
                 .orElseThrow(() -> new IllegalArgumentException("입찰자 정보를 찾을 수 없습니다."));
+
+        if (bidder.isBidRestrictedNow()) {
+            throw new IllegalStateException("입찰이 제한된 사용자입니다.");
+        }
 
         if (auction.getCreatedBy() != null && auction.getCreatedBy().getId().equals(bidderId)) {
             throw new IllegalArgumentException("자신의 경매에는 입찰할 수 없습니다.");
@@ -109,6 +128,10 @@ public class AuctionService {
 
         User bidder = userRepository.findById(buyerId)
                 .orElseThrow(() -> new IllegalArgumentException("입찰자 정보를 찾을 수 없습니다."));
+
+        if (bidder.isBidRestrictedNow()) {
+            throw new IllegalStateException("입찰이 제한된 사용자입니다.");
+        }
 
         if (auction.getCreatedBy() != null && auction.getCreatedBy().getId().equals(buyerId)) {
             throw new IllegalArgumentException("자신의 경매에는 입찰할 수 없습니다.");
@@ -159,5 +182,42 @@ public class AuctionService {
             a.finalizeWinner();
             auctionRepository.save(a);
         }
+    }
+
+    private void validateCreateAuctionRequest(CreateAuctionRequest request) {
+        if (request.getBuyNowPrice() != null && request.getBuyNowPrice() <= request.getStartingPrice()) {
+            throw new IllegalArgumentException("즉시 낙찰가는 시작가보다 커야 합니다.");
+        }
+    }
+
+    private Comparator<Auction> resolveAuctionComparator(String sort) {
+        if ("new".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(Auction::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+        }
+
+        if ("cheap".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(Auction::getCurrentPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+        }
+
+        if ("ending".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(Auction::getEndAt, Comparator.nullsLast(Comparator.naturalOrder()));
+        }
+
+        return Comparator.comparingInt((Auction auction) -> auction.getBids() == null ? 0 : auction.getBids().size())
+                .reversed()
+                .thenComparing(Auction::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+    }
+
+    private String normalizeCategoryOrDefault(String category) {
+        String normalized = normalizeCategory(category);
+        return normalized == null ? "SINGLE" : normalized;
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null || category.isBlank() || "ALL".equalsIgnoreCase(category)) {
+            return null;
+        }
+
+        return category.trim().toUpperCase(Locale.ROOT);
     }
 }

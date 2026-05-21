@@ -15,6 +15,7 @@ public class AuctionResponse {
     private String cardName;
     private String cardDescription;
     private String cardRarity;
+    private String cardCategory;
     private String imageUrl;
     private Long startingPrice;
     private Long currentPrice;
@@ -23,6 +24,8 @@ public class AuctionResponse {
     private boolean active;
     private LocalDateTime endAt;
     private LocalDateTime createdAt;
+    private Long creatorId;
+    private String creatorNickname;
     private int bidCount;
     private Long winnerId;
     private java.util.List<BidResponse> bids;
@@ -33,6 +36,7 @@ public class AuctionResponse {
                 .cardName(auction.getCardName())
                 .cardDescription(auction.getCardDescription())
                 .cardRarity(auction.getCardRarity())
+                .cardCategory(auction.getCardCategory())
                 .imageUrl(auction.getImageUrl())
                 .startingPrice(auction.getStartingPrice())
                 .currentPrice(auction.getCurrentPrice())
@@ -41,6 +45,8 @@ public class AuctionResponse {
                 .active(auction.isActive())
                 .endAt(auction.getEndAt())
                 .createdAt(auction.getCreatedAt())
+                .creatorId(auction.getCreatedBy() != null ? auction.getCreatedBy().getId() : null)
+                .creatorNickname(auction.getCreatedBy() != null ? auction.getCreatedBy().getNickname() : null)
                 .bidCount(auction.getBids().size())
                 .winnerId(auction.getWinnerId())
                 .bids(auction.getBids().stream().map(BidResponse::from).toList())

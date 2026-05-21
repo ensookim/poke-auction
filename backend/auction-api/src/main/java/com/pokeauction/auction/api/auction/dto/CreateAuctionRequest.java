@@ -21,6 +21,8 @@ public class CreateAuctionRequest {
 
     private String cardRarity;
 
+    private String cardCategory;
+
     private String imageUrl;
 
     @NotNull
