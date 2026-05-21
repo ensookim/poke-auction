@@ -31,7 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       if (process.env.EXPO_PUBLIC_DEV_AUTH === 'true') {
-        setUser({ id: 1, nickname: '테스트유저' });
+        const response = await authService.devLogin();
+        const devUser = {
+          id: response.userId,
+          nickname: response.nickname,
+        };
+
+        await authService.saveTokens(response.accessToken, response.refreshToken);
+        await authService.saveUser(devUser);
+        setUser(devUser);
         setIsSignedIn(true);
         return;
       }
