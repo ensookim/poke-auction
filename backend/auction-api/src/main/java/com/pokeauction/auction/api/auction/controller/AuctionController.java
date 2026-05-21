@@ -89,6 +89,12 @@ public class AuctionController {
         return auctionService.getAuctionsByBidder(userId);
     }
 
+    @GetMapping("/my-listings")
+    public List<AuctionResponse> myListings(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = resolveUserId(authorization);
+        return auctionService.getAuctionsByCreator(userId);
+    }
+
     private Long resolveUserId(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");

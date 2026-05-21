@@ -3,24 +3,26 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { palette, typography } from '@/constants/ui';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#EF4444',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: palette.brand,
+        tabBarInactiveTintColor: palette.subtle,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
+          fontFamily: typography.family,
           fontSize: 11,
           fontWeight: '800',
         },
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E7EB',
-          height: 66,
-          paddingBottom: 9,
+          backgroundColor: palette.surface,
+          borderTopColor: palette.line,
+          height: 68,
+          paddingBottom: 10,
           paddingTop: 8,
         },
       }}
@@ -37,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="buy"
         options={{
-          title: '구매',
+          title: '탐색',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search" size={size} color={color} />
           ),
@@ -46,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sell"
         options={{
-          title: '판매',
+          title: '등록',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle" size={size} color={color} />
           ),
@@ -55,19 +57,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="messages"
         options={{
-          title: '대화',
+          title: '채팅',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
+        name="my"
+        options={{
+          title: 'MY',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="my-bids"
         options={{
-          title: '입찰',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ticket" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

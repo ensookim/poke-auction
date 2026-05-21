@@ -148,6 +148,13 @@ class AuctionService {
     return response.data;
   }
 
+  async getMyListings(): Promise<AuctionResponse[]> {
+    const response = await this.client.get<AuctionResponse[]>(
+      '/api/auctions/my-listings',
+    );
+    return response.data;
+  }
+
   async placeBid(auctionId: number, amount: number): Promise<AuctionResponse> {
     const request: PlaceBidRequest = { amount };
     const response = await this.client.post<AuctionResponse>(

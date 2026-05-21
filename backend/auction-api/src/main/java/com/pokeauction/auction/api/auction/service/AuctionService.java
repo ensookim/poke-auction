@@ -171,6 +171,15 @@ public class AuctionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AuctionResponse> getAuctionsByCreator(Long creatorId) {
+        return auctionRepository.findAll().stream()
+                .filter(auction -> auction.getCreatedBy() != null && auction.getCreatedBy().getId().equals(creatorId))
+                .sorted(Comparator.comparing(Auction::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .map(AuctionResponse::from)
+                .toList();
+    }
+
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void finalizeEndedAuctions() {
