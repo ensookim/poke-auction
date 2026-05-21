@@ -1,99 +1,92 @@
 # PokeAuction
 
-Pokemon card auction app with Kakao login, category-based auction discovery, bidding, buy-now support, admin guardrails, and 1:1 buyer-seller chat.
+포켓몬 카드를 경매 방식으로 거래할 수 있는 앱입니다.  
+카카오 로그인, 카테고리 기반 경매 탐색, 입찰, 즉시 구매, 관리자 안전장치, 구매자-판매자 간 1:1 채팅 기능을 제공합니다.
 
-## Features
+## 주요 기능
 
-- Kakao OAuth login with JWT access and refresh tokens
-- Auction listing, detail, creation, bidding, and buy-now
-- Categories: single cards, sealed products, graded cards, and promos
-- Auction sorting by popularity, closing time, newest, and lowest price
-- Seller/buyer guardrails including self-bid prevention and bid restrictions
-- Admin suspicious-bid review and unpaid-user restriction endpoints
-- Realtime 1:1 chat through WebSocket plus REST history APIs
-- Expo mobile app with home, market, sell, chat, my-bids, and detail screens
+- 카카오 OAuth 로그인 및 JWT Access Token / Refresh Token 발급
+- 경매 목록 조회, 상세 조회, 경매 등록, 입찰, 즉시 구매 기능
+- 카테고리 분류: 단일 카드, 미개봉 상품, PSA/BGS 등급 카드, 프로모션 카드
+- 인기순, 마감 임박순, 최신순, 낮은 가격순 정렬
+- 판매자/구매자 보호 기능
+  - 본인 경매 입찰 방지
+  - 입찰 제한 조건 처리
+- 관리자 기능
+  - 의심 입찰 검토
+  - 미결제 사용자 제한 API
+- WebSocket 기반 실시간 1:1 채팅
+- REST API 기반 채팅 내역 조회
+- Expo 모바일 앱 화면 구성
+  - 홈
+  - 마켓
+  - 판매 등록
+  - 채팅
+  - 내 입찰
+  - 경매 상세 화면
 
-## Project Structure
+## 프로젝트 구조
 
-```text
 poke-auction/
-  backend/auction-api/   Spring Boot auction API
-  apps/mobile/           Expo React Native app
-  infra/                 Local infrastructure files
-  docs/                  Project notes
-```
+  backend/auction-api/   Spring Boot 기반 경매 API 서버
+  apps/mobile/           Expo React Native 모바일 앱
+  infra/                 로컬 인프라 설정 파일
+  docs/                  프로젝트 문서 및 정리 자료.
+  
+## 백엔드
 
-## Backend
+Java 17, Spring Web, Spring Security, Spring Data JPA, WebSocket, PostgreSQL, JWT
 
-The backend is a Spring Boot 3 application using Java 17, Spring Web, Spring Security, Spring Data JPA, WebSocket, PostgreSQL, and JWT.
 
-Required environment variables are loaded from `backend/auction-api/.env`:
+API 서버 실행:
 
-```properties
-KAKAO_REST_API_KEY=...
-KAKAO_CLIENT_SECRET=...
-JWT_SECRET_KEY=...
-```
-
-Run the API:
-
-```bash
 cd backend/auction-api
 ./gradlew bootRun
-```
 
-Run tests:
+테스트 실행:
 
-```bash
 cd backend/auction-api
 ./gradlew test
-```
 
-Main API areas:
+주요 API:
 
-- `GET /api/auctions`
-- `POST /api/auctions`
-- `POST /api/auctions/{id}/bid`
-- `POST /api/auctions/{id}/buy-now`
-- `POST /api/chats/auctions/{auctionId}/rooms`
-- `GET /api/chats/rooms`
-- `GET /api/chats/rooms/{roomId}/messages`
-- `WS /ws/chat?token={accessToken}`
+GET /api/auctions
+경매 목록 조회
+POST /api/auctions
+경매 등록
+POST /api/auctions/{id}/bid
+경매 입찰
+POST /api/auctions/{id}/buy-now
+즉시 구매
+POST /api/chats/auctions/{auctionId}/rooms
+특정 경매의 채팅방 생성 또는 조회
+GET /api/chats/rooms
+내 채팅방 목록 조회
+GET /api/chats/rooms/{roomId}/messages
+채팅 메시지 내역 조회
+WS /ws/chat?token={accessToken}
+WebSocket 채팅 연결
 
-## Mobile App
+## 프론트
 
-The mobile app is built with Expo Router and React Native.
-
-Required local environment file: `apps/mobile/.env`
-
-```properties
-EXPO_PUBLIC_KAKAO_APP_ID=...
-EXPO_PUBLIC_KAKAO_REDIRECT_URI=http://localhost:8081/kakao/callback
-EXPO_PUBLIC_BACKEND_URL=http://localhost:8080
-```
-
-Run the app:
-
-```bash
-cd apps/mobile
 npm install
 npm run web
-```
 
-Quality checks:
+코드 품질 검사:
 
-```bash
 cd apps/mobile
 npm run lint
 npx tsc --noEmit
-```
 
-## Kakao Login Notes
+카카오 로그인 설정 참고
 
-For Kakao login to work, the redirect URI in Kakao Developers must exactly match `EXPO_PUBLIC_KAKAO_REDIRECT_URI`.
+카카오 로그인이 정상적으로 동작하려면 Kakao Developers에 등록한 Redirect URI와
+EXPO_PUBLIC_KAKAO_REDIRECT_URI 값이 정확히 일치해야 합니다.
 
-For local web testing, run Expo on the matching port or update both places together.
+로컬 웹 환경에서 테스트할 경우, Expo 실행 포트와 Redirect URI의 포트가 동일해야 합니다.
+포트를 변경했다면 Kakao Developers 설정과 .env 파일 값을 함께 수정해야 합니다.
 
-## Security Notes
+보안 참고 사항
 
-Do not commit `.env` files. This repository ignores environment files and build artifacts by default.
+.env 파일은 절대 Git에 커밋하면 안 됩니다.
+이 프로젝트는 환경 변수 파일과 빌드 결과물이 Git에 올라가지 않도록 기본적으로 .gitignore에 포함하고 있습니다.
