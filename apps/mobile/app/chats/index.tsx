@@ -1,0 +1,270 @@
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, router } from 'expo-router';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { useAuth } from '@/context/AuthContext';
+import chatService, { ChatRoomResponse } from '@/services/chatService';
+
+export default function ChatRoomsScreen() {
+  const { isLoading, isSignedIn } = useAuth();
+  const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadRooms = async () => {
+      setLoading(true);
+      try {
+        setRooms(await chatService.getRooms());
+      } catch (error) {
+        Alert.alert(
+          '채팅 오류',
+          error instanceof Error ? error.message : '채팅방을 불러오지 못했습니다.',
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isSignedIn) {
+      loadRooms();
+    } else {
+      setLoading(false);
+    }
+  }, [isSignedIn]);
+
+  if (isLoading || loading) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator size="large" color="#EF4444" />
+      </ThemedView>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <Redirect href="/login" />;
+  }
+
+  return (
+    <ThemedView style={styles.container}>
+      <ScrollView
+        style={styles.scroller}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topBar}>
+          <Pressable style={styles.iconButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color="#111827" />
+          </Pressable>
+        </View>
+
+        <View style={styles.header}>
+          <ThemedText style={styles.eyebrow}>CHAT</ThemedText>
+          <ThemedText type="title" style={styles.title}>
+            1:1 대화
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
+            구매자와 판매자가 경매별로 안전하게 대화합니다.
+          </ThemedText>
+        </View>
+
+        {rooms.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="chatbubble-ellipses" size={34} color="#9CA3AF" />
+            <ThemedText style={styles.emptyTitle}>아직 대화방이 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>
+              경매 상세 화면에서 판매자 문의를 눌러 대화를 시작하세요.
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.roomList}>
+            {rooms.map((room) => (
+              <Pressable
+                key={room.id}
+                style={styles.roomItem}
+                onPress={() => router.push(`/chats/${room.id}` as any)}
+              >
+                <View style={styles.imageFrame}>
+                  <ThemedText style={styles.artMark}>
+                    {room.auctionCardName.slice(0, 1)}
+                  </ThemedText>
+                  {room.auctionImageUrl ? (
+                    <Image
+                      source={{ uri: room.auctionImageUrl }}
+                      style={styles.image}
+                      contentFit="contain"
+                    />
+                  ) : null}
+                </View>
+                <View style={styles.roomBody}>
+                  <View style={styles.roomTop}>
+                    <ThemedText style={styles.roomTitle} numberOfLines={1}>
+                      {room.otherUserNickname}
+                    </ThemedText>
+                    <ThemedText style={styles.roomDate}>
+                      {new Date(room.lastMessageAt).toLocaleDateString()}
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={styles.auctionName} numberOfLines={1}>
+                    {room.auctionCardName}
+                  </ThemedText>
+                  <ThemedText style={styles.preview} numberOfLines={1}>
+                    {room.lastMessagePreview || '대화를 시작해보세요.'}
+                  </ThemedText>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F7F9',
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6F7F9',
+  },
+  scroller: {
+    alignSelf: 'center',
+    maxWidth: 520,
+    width: '100%',
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  topBar: {
+    marginBottom: 14,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  header: {
+    marginBottom: 18,
+  },
+  eyebrow: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  title: {
+    color: '#111827',
+    fontSize: 30,
+    fontWeight: '900',
+    lineHeight: 36,
+  },
+  subtitle: {
+    color: '#6B7280',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 6,
+  },
+  emptyState: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 28,
+  },
+  emptyTitle: {
+    color: '#111827',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  emptyText: {
+    color: '#6B7280',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  roomList: {
+    gap: 12,
+  },
+  roomItem: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  imageFrame: {
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    height: 112,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    width: 86,
+  },
+  artMark: {
+    color: '#CBD5E1',
+    fontSize: 32,
+    fontWeight: '900',
+    position: 'relative',
+    zIndex: 1,
+  },
+  image: {
+    height: '100%',
+    position: 'absolute',
+    width: '100%',
+  },
+  roomBody: {
+    flex: 1,
+    padding: 14,
+  },
+  roomTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  roomTitle: {
+    color: '#111827',
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  roomDate: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  auctionName: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  preview: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+});

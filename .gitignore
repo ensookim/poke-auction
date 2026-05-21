@@ -1,7 +1,11 @@
-﻿# Ignore nested mobile app repo
-apps/mobile/
+# Environment files
+.env
+**/.env
 
-# Ignore node and build artifacts
+# Local migration backups
+.nested-git-backups/
+
+# Node and build artifacts
 **/node_modules/
 **/build/
 **/.gradle/
