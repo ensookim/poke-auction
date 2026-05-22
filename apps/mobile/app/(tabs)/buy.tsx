@@ -16,6 +16,8 @@ import {
   AUCTION_CATEGORIES,
   AuctionCategoryKey,
   AuctionSortKey,
+  EDITION_OPTIONS,
+  GRADE_OPTIONS,
   SORT_OPTIONS,
   formatPrice,
   formatRemainingTime,
@@ -37,6 +39,10 @@ export default function BuyScreen() {
   );
   const [sort, setSort] = useState<AuctionSortKey>('hot');
   const [query, setQuery] = useState(params.q ?? '');
+  const [selectedEdition, setSelectedEdition] =
+    useState<'ALL' | (typeof EDITION_OPTIONS)[number]>('ALL');
+  const [selectedGrade, setSelectedGrade] =
+    useState<'ALL' | (typeof GRADE_OPTIONS)[number]>('ALL');
   const [buyNowOnly, setBuyNowOnly] = useState(false);
   const [endingTodayOnly, setEndingTodayOnly] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -78,6 +84,15 @@ export default function BuyScreen() {
   const visibleAuctions = useMemo(() => {
     const searched = auctions.filter((auction) => {
       const keyword = query.trim().toLowerCase();
+      const attributes = auction.cardRarity?.toLowerCase() ?? '';
+      const matchesEdition =
+        selectedEdition === 'ALL' ||
+        attributes.includes(selectedEdition.toLowerCase());
+      const matchesGrade =
+        selectedGrade === 'ALL' ||
+        attributes.includes(selectedGrade.toLowerCase());
+      const matchesAttributes = matchesEdition && matchesGrade;
+
       if (buyNowOnly && !auction.buyNowPrice) {
         return false;
       }
@@ -90,16 +105,27 @@ export default function BuyScreen() {
       }
 
       if (!keyword) {
-        return true;
+        return matchesAttributes;
       }
 
-      return [auction.cardName, auction.cardRarity, auction.cardDescription]
-        .filter(Boolean)
-        .some((text) => text.toLowerCase().includes(keyword));
+      return (
+        matchesAttributes &&
+        [auction.cardName, auction.cardRarity, auction.cardDescription]
+          .filter(Boolean)
+          .some((text) => text.toLowerCase().includes(keyword))
+      );
     });
 
     return sortAuctions(searched, sort);
-  }, [auctions, buyNowOnly, endingTodayOnly, query, sort]);
+  }, [
+    auctions,
+    buyNowOnly,
+    endingTodayOnly,
+    query,
+    selectedEdition,
+    selectedGrade,
+    sort,
+  ]);
 
   if (isLoading || isFetching) {
     return (
@@ -132,7 +158,7 @@ export default function BuyScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="카드명, 희귀도, 설명 검색"
+            placeholder="카드명, 브랜드, 등급 검색"
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
           />
@@ -234,6 +260,62 @@ export default function BuyScreen() {
               </ThemedText>
             </Pressable>
           ))}
+        </View>
+
+        <View style={styles.attributeFilters}>
+          <ThemedText style={styles.attributeLabel}>판본</ThemedText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.attributeRail}
+          >
+            {(['ALL', ...EDITION_OPTIONS] as const).map((option) => {
+              const active = selectedEdition === option;
+              return (
+                <Pressable
+                  key={option}
+                  style={[styles.attributeChip, active && styles.attributeChipActive]}
+                  onPress={() => setSelectedEdition(option)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.attributeChipText,
+                      active && styles.attributeChipTextActive,
+                    ]}
+                  >
+                    {option === 'ALL' ? '전체' : option}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <ThemedText style={styles.attributeLabel}>등급</ThemedText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.attributeRail}
+          >
+            {(['ALL', ...GRADE_OPTIONS] as const).map((option) => {
+              const active = selectedGrade === option;
+              return (
+                <Pressable
+                  key={option}
+                  style={[styles.attributeChip, active && styles.attributeChipActive]}
+                  onPress={() => setSelectedGrade(option)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.attributeChipText,
+                      active && styles.attributeChipTextActive,
+                    ]}
+                  >
+                    {option === 'ALL' ? '전체' : option}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <View style={styles.resultHeader}>
@@ -474,6 +556,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sortChipTextActive: {
+    color: '#FFFFFF',
+  },
+  attributeFilters: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  attributeLabel: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  attributeRail: {
+    gap: 8,
+    paddingBottom: 2,
+  },
+  attributeChip: {
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  attributeChipActive: {
+    backgroundColor: palette.ink,
+    borderColor: palette.ink,
+  },
+  attributeChipText: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  attributeChipTextActive: {
     color: '#FFFFFF',
   },
   resultHeader: {

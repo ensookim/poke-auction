@@ -90,9 +90,9 @@ class CommerceServiceTests {
     private CreateAuctionRequest defaultAuctionRequest(Long buyNowPrice) {
         return CreateAuctionRequest.builder()
                 .cardName("루키 카드")
-                .cardDescription("상태가 좋은 트레이딩 카드입니다.")
-                .cardRarity("Rare")
-                .cardCategory("SINGLE")
+                .cardDescription("판본: 프로모\n등급: 미감정\n상태가 좋은 포켓몬 카드입니다.")
+                .cardRarity("프로모 · 미감정")
+                .cardCategory("POKEMON")
                 .imageUrl("https://example.com/card.png")
                 .startingPrice(1500L)
                 .minimumIncrement(100L)

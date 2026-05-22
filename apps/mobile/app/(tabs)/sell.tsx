@@ -15,6 +15,8 @@ import {
   AUCTION_CATEGORIES,
   AuctionCategoryKey,
   CONDITION_OPTIONS,
+  EDITION_OPTIONS,
+  GRADE_OPTIONS,
   LANGUAGE_OPTIONS,
   formatPrice,
 } from '@/constants/auction';
@@ -45,12 +47,16 @@ export default function SellScreen() {
   const [cardName, setCardName] = useState('');
   const [cardDescription, setCardDescription] = useState('');
   const [cardRarity, setCardRarity] = useState('');
+  const [cardEdition, setCardEdition] =
+    useState<(typeof EDITION_OPTIONS)[number]>('일반판');
+  const [cardGrade, setCardGrade] =
+    useState<(typeof GRADE_OPTIONS)[number]>('미감정');
   const [cardCondition, setCardCondition] =
     useState<(typeof CONDITION_OPTIONS)[number]>('민트');
   const [cardLanguage, setCardLanguage] =
     useState<(typeof LANGUAGE_OPTIONS)[number]>('한국어');
   const [cardCategory, setCardCategory] =
-    useState<AuctionCategoryKey>('SINGLE');
+    useState<AuctionCategoryKey>('POKEMON');
   const [imageUrl, setImageUrl] = useState('');
   const [startingPrice, setStartingPrice] = useState('');
   const [minimumIncrement, setMinimumIncrement] = useState('100');
@@ -69,15 +75,25 @@ export default function SellScreen() {
     setCardName('');
     setCardDescription('');
     setCardRarity('');
+    setCardEdition('일반판');
+    setCardGrade('미감정');
     setCardCondition('민트');
     setCardLanguage('한국어');
-    setCardCategory('SINGLE');
+    setCardCategory('POKEMON');
     setImageUrl('');
     setStartingPrice('');
     setMinimumIncrement('100');
     setBuyNowPrice('');
     setDurationHours('24');
   };
+
+  const cardAttributeText = useMemo(
+    () =>
+      [cardEdition, cardGrade, cardRarity.trim()]
+        .filter((value) => value && value !== '일반판')
+        .join(' · '),
+    [cardEdition, cardGrade, cardRarity],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!cardName.trim()) {
@@ -111,6 +127,8 @@ export default function SellScreen() {
     }
 
     const descriptionLines = [
+      `판본: ${cardEdition}`,
+      `등급: ${cardGrade}`,
       `상태: ${cardCondition}`,
       `언어: ${cardLanguage}`,
       cardDescription.trim(),
@@ -119,7 +137,7 @@ export default function SellScreen() {
     const request: CreateAuctionRequest = {
       cardName: cardName.trim(),
       cardDescription: descriptionLines.join('\n'),
-      cardRarity: cardRarity.trim(),
+      cardRarity: cardAttributeText || cardGrade,
       cardCategory,
       imageUrl: imageUrl.trim(),
       startingPrice: starting,
@@ -149,9 +167,11 @@ export default function SellScreen() {
     cardCategory,
     cardCondition,
     cardDescription,
+    cardEdition,
+    cardGrade,
     cardLanguage,
     cardName,
-    cardRarity,
+    cardAttributeText,
     durationHours,
     imageUrl,
     minimumIncrement,
@@ -227,7 +247,7 @@ export default function SellScreen() {
               {cardName || '카드 이름을 입력하세요'}
             </ThemedText>
             <ThemedText style={styles.previewMeta}>
-              {cardRarity || '희귀도'} · {cardCondition} · {cardLanguage}
+              {cardAttributeText || cardGrade} · {cardCondition} · {cardLanguage}
             </ThemedText>
             <View style={styles.previewPriceRow}>
               <View>
@@ -251,7 +271,7 @@ export default function SellScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>카테고리</ThemedText>
-            <ThemedText style={styles.sectionMeta}>상품 성격에 맞게 노출</ThemedText>
+            <ThemedText style={styles.sectionMeta}>카드 종류 기준</ThemedText>
           </View>
           <View style={styles.categoryGrid}>
             {selectableCategories.map((category) => {
@@ -313,7 +333,7 @@ export default function SellScreen() {
             <TextInput
               value={cardRarity}
               onChangeText={setCardRarity}
-              placeholder="희귀도"
+              placeholder="세부 레어도 예: UR, SR"
               placeholderTextColor={palette.subtle}
               style={[styles.input, styles.flexInput]}
             />
@@ -324,6 +344,56 @@ export default function SellScreen() {
               placeholderTextColor={palette.subtle}
               style={[styles.input, styles.flexInput]}
             />
+          </View>
+
+          <View style={styles.optionBlock}>
+            <ThemedText style={styles.optionLabel}>판본</ThemedText>
+            <View style={styles.chipRow}>
+              {EDITION_OPTIONS.map((option) => (
+                <Pressable
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    cardEdition === option && styles.optionChipActive,
+                  ]}
+                  onPress={() => setCardEdition(option)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.optionChipText,
+                      cardEdition === option && styles.optionChipTextActive,
+                    ]}
+                  >
+                    {option}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.optionBlock}>
+            <ThemedText style={styles.optionLabel}>등급</ThemedText>
+            <View style={styles.chipRow}>
+              {GRADE_OPTIONS.map((option) => (
+                <Pressable
+                  key={option}
+                  style={[
+                    styles.optionChip,
+                    cardGrade === option && styles.optionChipActive,
+                  ]}
+                  onPress={() => setCardGrade(option)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.optionChipText,
+                      cardGrade === option && styles.optionChipTextActive,
+                    ]}
+                  >
+                    {option}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
           <View style={styles.optionBlock}>

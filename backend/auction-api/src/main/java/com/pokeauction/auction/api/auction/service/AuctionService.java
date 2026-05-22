@@ -219,7 +219,7 @@ public class AuctionService {
 
     private String normalizeCategoryOrDefault(String category) {
         String normalized = normalizeCategory(category);
-        return normalized == null ? "SINGLE" : normalized;
+        return normalized == null ? "POKEMON" : normalized;
     }
 
     private String normalizeCategory(String category) {

@@ -1,6 +1,14 @@
 import { AuctionResponse } from '@/services/auctionService';
 
-export type AuctionCategoryKey = 'ALL' | 'SINGLE' | 'SEALED' | 'GRADED' | 'PROMO';
+export type AuctionCategoryKey =
+  | 'ALL'
+  | 'POKEMON'
+  | 'YUGIOH'
+  | 'ONE_PIECE'
+  | 'SPORTS'
+  | 'MAGIC'
+  | 'DIGIMON'
+  | 'ETC';
 
 export const AUCTION_CATEGORIES: {
   key: AuctionCategoryKey;
@@ -19,36 +27,60 @@ export const AUCTION_CATEGORIES: {
     icon: 'grid',
   },
   {
-    key: 'SINGLE',
-    label: '트레이딩',
-    subtitle: 'TCG/스포츠/수집',
+    key: 'POKEMON',
+    label: '포켓몬',
+    subtitle: '포켓몬 카드/프로모',
     tint: '#0F766E',
     background: '#E7F7F3',
-    icon: 'albums',
+    icon: 'flash',
   },
   {
-    key: 'SEALED',
-    label: '미개봉',
-    subtitle: '팩/박스/세트',
+    key: 'YUGIOH',
+    label: '유희왕',
+    subtitle: 'OCG/TCG/레어 카드',
     tint: '#A16207',
     background: '#FFF4D6',
-    icon: 'cube',
+    icon: 'sparkles',
   },
   {
-    key: 'GRADED',
-    label: '그레이딩',
-    subtitle: 'PSA/BGS/CGC 인증',
+    key: 'ONE_PIECE',
+    label: '원피스',
+    subtitle: 'OPCG/프로모/한정판',
     tint: '#6D28D9',
     background: '#F0E7FF',
-    icon: 'ribbon',
+    icon: 'boat',
   },
   {
-    key: 'PROMO',
-    label: '한정판',
-    subtitle: '프로모/이벤트',
+    key: 'SPORTS',
+    label: '스포츠',
+    subtitle: '야구/축구/농구 카드',
     tint: '#BE123C',
     background: '#FFE5EC',
-    icon: 'sparkles',
+    icon: 'baseball',
+  },
+  {
+    key: 'MAGIC',
+    label: '매직',
+    subtitle: 'MTG/영문 카드',
+    tint: '#2563EB',
+    background: '#DBEAFE',
+    icon: 'color-wand',
+  },
+  {
+    key: 'DIGIMON',
+    label: '디지몬',
+    subtitle: '디지몬 카드게임',
+    tint: '#EA580C',
+    background: '#FFEDD5',
+    icon: 'game-controller',
+  },
+  {
+    key: 'ETC',
+    label: '기타',
+    subtitle: '그 외 수집 카드',
+    tint: '#475569',
+    background: '#E2E8F0',
+    icon: 'albums',
   },
 ];
 
@@ -68,6 +100,25 @@ export const TRUST_BADGES = [
 export const CONDITION_OPTIONS = ['미개봉', '민트', '상급', '플레이용'] as const;
 
 export const LANGUAGE_OPTIONS = ['한국어', '일본어', '영어', '기타'] as const;
+
+export const EDITION_OPTIONS = [
+  '일반판',
+  '한정판',
+  '프로모',
+  '시크릿/레어',
+  '사인/넘버드',
+  '미개봉',
+] as const;
+
+export const GRADE_OPTIONS = [
+  '미감정',
+  'PSA 10',
+  'PSA 9',
+  'BGS 10',
+  'BGS 9.5',
+  'CGC 10',
+  '기타 등급',
+] as const;
 
 export type AuctionSortKey = (typeof SORT_OPTIONS)[number]['key'];
 

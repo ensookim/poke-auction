@@ -24,11 +24,11 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "2024 프리즘 루키 카드",
-                        "상태: 민트\n언어: 영어\n슬리브 보관 중인 스포츠 루키 카드입니다.",
-                        "Rookie",
-                        "SINGLE",
-                        "https://picsum.photos/seed/cardbid-rookie/400/560",
+                        "포켓몬 피카츄 프로모 카드",
+                        "판본: 프로모\n등급: 미감정\n상태: 민트\n언어: 한국어\n슬리브 보관 중인 포켓몬 프로모 카드입니다.",
+                        "프로모 · 미감정",
+                        "POKEMON",
+                        "https://picsum.photos/seed/cardbid-pokemon/400/560",
                         12000L,
                         1000L,
                         25000L,
@@ -39,11 +39,11 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "미개봉 트레이딩 카드 박스",
-                        "상태: 미개봉\n구성품: 부스터 박스 1개\n외부 비닐 훼손 없는 상품입니다.",
-                        "Sealed",
-                        "SEALED",
-                        "https://picsum.photos/seed/cardbid-sealed/400/560",
+                        "유희왕 블랙 매지션 시크릿",
+                        "판본: 시크릿/레어\n등급: PSA 9\n상태: 상급\n언어: 일본어\n케이스 스크래치가 적은 감정 카드입니다.",
+                        "시크릿/레어 · PSA 9",
+                        "YUGIOH",
+                        "https://picsum.photos/seed/cardbid-yugioh/400/560",
                         38000L,
                         2000L,
                         58000L,
@@ -54,11 +54,11 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "한정판 사인 카드 PSA 10",
-                        "상태: 그레이딩\n인증: PSA 10\n케이스 스크래치가 거의 없는 한정판 카드입니다.",
-                        "PSA 10",
-                        "GRADED",
-                        "https://picsum.photos/seed/cardbid-graded/400/560",
+                        "한정판 스포츠 사인 카드 PSA 10",
+                        "판본: 사인/넘버드\n등급: PSA 10\n상태: 민트\n언어: 영어\n케이스 스크래치가 거의 없는 한정판 스포츠 카드입니다.",
+                        "사인/넘버드 · PSA 10",
+                        "SPORTS",
+                        "https://picsum.photos/seed/cardbid-sports/400/560",
                         95000L,
                         5000L,
                         145000L,
