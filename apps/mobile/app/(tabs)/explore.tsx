@@ -26,7 +26,7 @@ export default function ExploreScreen() {
             시세와 카테고리
           </ThemedText>
           <ThemedText style={styles.subtitle}>
-            포켓몬 카드 경매를 빠르게 판단할 수 있는 기준만 모았습니다.
+            카드 경매를 빠르게 판단할 수 있는 기준만 모았습니다.
           </ThemedText>
         </View>
 

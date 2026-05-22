@@ -24,13 +24,13 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "피카츄",
-                        "전기 속성 포켓몬 카드입니다.",
-                        "Rare",
+                        "2024 프리즘 루키 카드",
+                        "상태: 민트\n언어: 영어\n슬리브 보관 중인 스포츠 루키 카드입니다.",
+                        "Rookie",
                         "SINGLE",
-                        "https://assets.pokemon.com/assets/cms2/img/cards/web/XY11/010_hires.png",
-                        1200L,
-                        100L,
+                        "https://picsum.photos/seed/cardbid-rookie/400/560",
+                        12000L,
+                        1000L,
                         null,
                         48
                 ),
@@ -39,13 +39,13 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "이상해씨",
-                        "풀 속성 스타팅 포켓몬 카드입니다.",
-                        "Uncommon",
+                        "미개봉 트레이딩 카드 박스",
+                        "상태: 미개봉\n구성품: 부스터 박스 1개\n외부 비닐 훼손 없는 상품입니다.",
+                        "Sealed",
                         "SEALED",
-                        "https://assets.pokemon.com/assets/cms2/img/cards/web/SM/001.png",
-                        800L,
-                        50L,
+                        "https://picsum.photos/seed/cardbid-sealed/400/560",
+                        38000L,
+                        2000L,
                         null,
                         36
                 ),
@@ -54,13 +54,13 @@ public class DataInitializer implements ApplicationRunner {
 
         auctionService.createAuction(
                 new CreateAuctionRequest(
-                        "리자몽",
-                        "불 속성 전설의 포켓몬 카드입니다.",
-                        "Ultra Rare",
+                        "한정판 사인 카드 PSA 10",
+                        "상태: 그레이딩\n인증: PSA 10\n케이스 스크래치가 거의 없는 한정판 카드입니다.",
+                        "PSA 10",
                         "GRADED",
-                        "https://assets.pokemon.com/assets/cms2/img/cards/web/XY7/006_hires.png",
+                        "https://picsum.photos/seed/cardbid-graded/400/560",
+                        95000L,
                         5000L,
-                        300L,
                         null,
                         72
                 ),

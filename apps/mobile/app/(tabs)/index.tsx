@@ -113,7 +113,7 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View>
-            <ThemedText style={styles.brand}>POKE AUCTION</ThemedText>
+            <ThemedText style={styles.brand}>CARDBID</ThemedText>
             <ThemedText style={styles.greeting}>{user.nickname}님</ThemedText>
           </View>
           <View style={styles.headerActions}>
@@ -132,7 +132,7 @@ export default function HomeScreen() {
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSubmitSearch}
-            placeholder="카드명, 등급, 희귀도 검색"
+            placeholder="카드명, 브랜드, 등급 검색"
             placeholderTextColor={palette.subtle}
             returnKeyType="search"
             style={styles.searchInput}

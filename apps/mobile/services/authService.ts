@@ -78,7 +78,7 @@ const getKakaoRedirectUri = (): string => {
   }
 
   return makeRedirectUri({
-    scheme: 'pokeauction',
+    scheme: 'cardbid',
     path: 'kakao/callback',
   });
 };

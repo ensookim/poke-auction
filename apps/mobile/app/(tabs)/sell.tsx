@@ -305,7 +305,7 @@ export default function SellScreen() {
           <TextInput
             value={cardName}
             onChangeText={setCardName}
-            placeholder="예: 리자몽 ex SAR"
+            placeholder="예: 2024 프리즘 루키 카드 PSA 10"
             placeholderTextColor={palette.subtle}
             style={styles.input}
           />

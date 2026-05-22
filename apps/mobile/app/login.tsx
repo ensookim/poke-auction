@@ -80,13 +80,13 @@ export default function LoginScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.content}>
         <ThemedText type="defaultSemiBold" style={styles.brand}>
-          PokeAuction
+          CardBid
         </ThemedText>
         <ThemedText type="title" style={styles.title}>
-          포켓몬 경매
+          카드 경매
         </ThemedText>
         <ThemedText style={styles.subtitle}>
-          간편하게 로그인하고, 원하는 카드에 입찰해보세요.
+          트레이딩 카드부터 한정판 카드까지, 간편하게 입찰해보세요.
         </ThemedText>
 
         <View style={styles.loginContainer}>

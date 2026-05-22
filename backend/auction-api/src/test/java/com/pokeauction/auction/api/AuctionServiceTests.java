@@ -48,10 +48,10 @@ class AuctionServiceTests {
                 .build());
 
         CreateAuctionRequest request = CreateAuctionRequest.builder()
-                .cardName("파이리")
-                .cardDescription("불 속성 스타터 포켓몬입니다.")
+                .cardName("루키 카드")
+                .cardDescription("상태가 좋은 트레이딩 카드입니다.")
                 .cardRarity("Rare")
-                .imageUrl("https://example.com/charizard.png")
+                .imageUrl("https://example.com/card.png")
                 .startingPrice(1500L)
                 .minimumIncrement(100L)
                 .durationHours(24)
@@ -110,7 +110,7 @@ class AuctionServiceTests {
     @Test
     void buyNowPriceMustBeGreaterThanStartingPrice() {
         CreateAuctionRequest request = CreateAuctionRequest.builder()
-                .cardName("꼬부기")
+                .cardName("한정판 카드")
                 .startingPrice(1500L)
                 .minimumIncrement(100L)
                 .buyNowPrice(1500L)
@@ -124,10 +124,10 @@ class AuctionServiceTests {
 
     private CreateAuctionRequest defaultAuctionRequest() {
         return CreateAuctionRequest.builder()
-                .cardName("파이리")
-                .cardDescription("불 속성 스타터 포켓몬입니다.")
+                .cardName("루키 카드")
+                .cardDescription("상태가 좋은 트레이딩 카드입니다.")
                 .cardRarity("Rare")
-                .imageUrl("https://example.com/charizard.png")
+                .imageUrl("https://example.com/card.png")
                 .startingPrice(1500L)
                 .minimumIncrement(100L)
                 .durationHours(24)

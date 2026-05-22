@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "CardBid",
+    "slug": "cardbid",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pokeauction",
+    "scheme": "cardbid",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

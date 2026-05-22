@@ -12,7 +12,7 @@ public class HealthController {
     public Map<String, String> health() {
         return Map.of(
                 "status", "OK",
-                "message", "Poke Auction API is running"
+                "message", "CardBid API is running"
         );
     }
 }
