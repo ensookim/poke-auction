@@ -167,6 +167,18 @@ public class AuctionService {
     }
 
     @Transactional
+    public void deleteAuction(Long auctionId, Long userId) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
+
+        if (auction.getCreatedBy() == null || !auction.getCreatedBy().getId().equals(userId)) {
+            throw new IllegalStateException("본인이 등록한 경매만 삭제할 수 있습니다.");
+        }
+
+        auctionRepository.delete(auction);
+    }
+
+    @Transactional
     public AuctionResponse submitShippingInfo(Long auctionId, Long buyerId, ShippingInfoRequest request) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));

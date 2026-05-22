@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AUCTION_CATEGORIES,
@@ -53,6 +54,7 @@ const cardImagePickerOptions: ImagePicker.ImagePickerOptions = {
 
 export default function SellScreen() {
   const { isLoading, isSignedIn } = useAuth();
+  const insets = useSafeAreaInsets();
   const [cardName, setCardName] = useState('');
   const [cardDescription, setCardDescription] = useState('');
   const [cardRarity, setCardRarity] = useState('');
@@ -206,12 +208,18 @@ export default function SellScreen() {
       cardDescription.trim(),
     ].filter(Boolean);
 
+    let uploadedImageUrl = imageUrl.trim();
+
+    if (uploadedImageUrl.startsWith('file:')) {
+      uploadedImageUrl = await auctionService.uploadAuctionImage(uploadedImageUrl);
+    }
+
     const request: CreateAuctionRequest = {
       cardName: cardName.trim(),
       cardDescription: descriptionLines.join('\n'),
       cardRarity: cardAttributeText || conditionText,
       cardCategory,
-      imageUrl: imageUrl.trim(),
+      imageUrl: uploadedImageUrl,
       startingPrice: starting,
       minimumIncrement: increment,
       durationHours: duration,
@@ -265,10 +273,14 @@ export default function SellScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 42 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -731,7 +743,7 @@ export default function SellScreen() {
           </ThemedText>
         </Pressable>
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 

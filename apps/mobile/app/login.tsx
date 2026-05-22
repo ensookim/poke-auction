@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,8 +6,9 @@ import {
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import { useAuthRequest } from 'expo-auth-session';
+import { makeRedirectUri } from 'expo-auth-session';
 import { useAuth } from '@/context/AuthContext';
 import authService from '@/services/authService';
 import { ThemedText } from '@/components/themed-text';
@@ -17,55 +18,80 @@ import { ThemedView } from '../components/themed-view';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { login, isLoading } = useAuth();
+  const { isLoading, checkAuth } = useAuth();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  // Kakao OAuth endpoint
-  const discovery = {
-    authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
-    tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
-  };
-
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: process.env.EXPO_PUBLIC_KAKAO_APP_ID || '',
-      redirectUri: authService.getRedirectUri(),
-      usePKCE: false,
-    },
-    discovery,
-  );
-
-  const handleKakaoCallback = useCallback(async (code: string) => {
+  const handleKakaoLogin = async () => {
     try {
       setIsAuthLoading(true);
-      await login(code);
-      Alert.alert('로그인 성공!');
+
+      const loginUrl = authService.getKakaoLoginUrl();
+
+      // Expo Go에서 앱으로 다시 돌아올 주소
+      const appRedirectUri = makeRedirectUri({
+        path: 'login-success',
+      });
+
+      console.log('🟢 카카오 로그인 URL:', loginUrl);
+      console.log('🟢 앱 리다이렉트 URI:', appRedirectUri);
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        loginUrl,
+        appRedirectUri,
+      );
+
+      console.log('🟢 카카오 로그인 결과:', result);
+
+      if (result.type !== 'success') {
+        console.log('카카오 로그인 취소/실패:', result);
+        return;
+      }
+
+      const parsedUrl = new URL(result.url);
+
+      const accessToken = parsedUrl.searchParams.get('accessToken');
+      const refreshToken = parsedUrl.searchParams.get('refreshToken');
+      const userId = parsedUrl.searchParams.get('userId');
+      const nickname = parsedUrl.searchParams.get('nickname');
+
+      console.log('🟢 userId:', userId);
+      console.log('🟢 nickname:', nickname);
+
+      if (!accessToken || !refreshToken) {
+        Alert.alert('로그인 실패', '토큰을 받지 못했습니다.');
+        return;
+      }
+
+      await authService.saveTokens(accessToken, refreshToken);
+
+      if (userId && nickname) {
+        await authService.saveUser({
+          id: Number(userId),
+          nickname,
+        });
+      }
+
+      // 저장된 토큰/유저 정보를 AuthContext에 다시 반영
+
+      await checkAuth();
+
+      console.log('✅ checkAuth 끝. 홈으로 이동 시도');
+
+      router.replace('/');
+
       router.replace('/');
     } catch (error) {
-      const backendMessage =
-        typeof error === 'object' && error !== null
-          ? (error as any).response?.data || (error as any).message
-          : undefined;
+      console.error('카카오 로그인 처리 실패:', error);
 
       Alert.alert(
         '로그인 실패',
-        backendMessage || '알 수 없는 오류가 발생했습니다.',
+        error instanceof Error
+          ? error.message
+          : '알 수 없는 오류가 발생했습니다.',
       );
     } finally {
       setIsAuthLoading(false);
     }
-  }, [login]);
-
-  // Handle auth response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const authCode = response.params.code;
-      handleKakaoCallback(authCode);
-    }
-  }, [handleKakaoCallback, response]);
-
-  const handleKakaoLogin = async () => {
-    await promptAsync();
   };
 
   if (isLoading || isAuthLoading) {
@@ -77,23 +103,28 @@ export default function LoginScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <ThemedText type="defaultSemiBold" style={styles.brand}>
           CardBid
         </ThemedText>
+
         <ThemedText type="title" style={styles.title}>
           카드 경매
         </ThemedText>
+
         <ThemedText style={styles.subtitle}>
           트레이딩 카드부터 한정판 카드까지, 간편하게 입찰해보세요.
         </ThemedText>
 
         <View style={styles.loginContainer}>
-          <KakaoLoginButton onPress={handleKakaoLogin} disabled={!request} />
+          <KakaoLoginButton
+            onPress={handleKakaoLogin}
+            disabled={isAuthLoading}
+          />
         </View>
       </View>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 

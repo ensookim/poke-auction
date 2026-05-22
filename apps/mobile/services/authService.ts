@@ -7,7 +7,10 @@ import { makeRedirectUri } from 'expo-auth-session';
 const RAW_BACKEND_URL =
   process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8080';
 const KAKAO_APP_ID = process.env.EXPO_PUBLIC_KAKAO_APP_ID;
-const KAKAO_REDIRECT_URI = process.env.EXPO_PUBLIC_KAKAO_REDIRECT_URI;
+const KAKAO_WEB_REDIRECT_URI = process.env.EXPO_PUBLIC_KAKAO_WEB_REDIRECT_URI;
+
+const KAKAO_NATIVE_REDIRECT_URI =
+  process.env.EXPO_PUBLIC_KAKAO_NATIVE_REDIRECT_URI;
 const isWeb = Platform.OS === 'web';
 
 const getBackendHostFromConstants = (): string | null => {
@@ -73,16 +76,15 @@ export const tokenStorage = {
 };
 
 const getKakaoRedirectUri = (): string => {
-  if (isWeb && KAKAO_REDIRECT_URI) {
-    return KAKAO_REDIRECT_URI;
+  if (isWeb) {
+    return KAKAO_WEB_REDIRECT_URI || 'http://localhost:8081/kakao/callback';
   }
 
-  return makeRedirectUri({
-    scheme: 'cardbid',
-    path: 'kakao/callback',
-  });
+  return (
+    KAKAO_NATIVE_REDIRECT_URI ||
+    'http://192.168.15.112:8080/api/auth/kakao/callback'
+  );
 };
-
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;

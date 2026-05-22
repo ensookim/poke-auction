@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,30 +19,39 @@ import chatService, { ChatRoomResponse } from '@/services/chatService';
 
 export default function ChatRoomsScreen() {
   const { isLoading, isSignedIn } = useAuth();
+  const insets = useSafeAreaInsets();
   const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadRooms = async () => {
-      setLoading(true);
-      try {
-        setRooms(await chatService.getRooms());
-      } catch (error) {
-        Alert.alert(
-          '문의 오류',
-          error instanceof Error ? error.message : '문의 내역을 불러오지 못했습니다.',
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadRooms = useCallback(async () => {
+    setLoading(true);
+    try {
+      setRooms(await chatService.getRooms());
+    } catch (error) {
+      Alert.alert(
+        '문의 오류',
+        error instanceof Error ? error.message : '문의 내역을 불러오지 못했습니다.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
     if (isSignedIn) {
       loadRooms();
     } else {
       setLoading(false);
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, loadRooms]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSignedIn) {
+        loadRooms();
+      }
+    }, [isSignedIn, loadRooms]),
+  );
 
   if (isLoading || loading) {
     return (
@@ -56,10 +66,14 @@ export default function ChatRoomsScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 40 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
@@ -102,7 +116,7 @@ export default function ChatRoomsScreen() {
                     <Image
                       source={{ uri: room.auctionImageUrl }}
                       style={styles.image}
-                      contentFit="contain"
+                      contentFit="cover"
                     />
                   ) : null}
                 </View>
@@ -127,7 +141,7 @@ export default function ChatRoomsScreen() {
           </View>
         )}
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -219,7 +233,7 @@ const styles = StyleSheet.create({
   imageFrame: {
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    height: 112,
+    aspectRatio: 0.72,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',

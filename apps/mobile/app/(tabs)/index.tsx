@@ -8,8 +8,9 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AUCTION_CATEGORIES,
@@ -31,6 +32,7 @@ const visibleCategories = AUCTION_CATEGORIES.filter(
 
 export default function HomeScreen() {
   const { user, isLoading, isSignedIn } = useAuth();
+  const insets = useSafeAreaInsets();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [query, setQuery] = useState('');
@@ -53,6 +55,14 @@ export default function HomeScreen() {
   useEffect(() => {
     loadAuctions();
   }, [loadAuctions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSignedIn) {
+        loadAuctions();
+      }
+    }, [isSignedIn, loadAuctions]),
+  );
 
   const filteredAuctions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -105,10 +115,14 @@ export default function HomeScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 38 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -258,7 +272,7 @@ export default function HomeScreen() {
                     <Image
                       source={{ uri: auction.imageUrl }}
                       style={styles.gridImage}
-                      contentFit="contain"
+                      contentFit="cover"
                       transition={150}
                     />
                     {auction.buyNowPrice ? (
@@ -292,7 +306,7 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -491,7 +505,7 @@ const styles = StyleSheet.create({
   },
   gridImageFrame: {
     alignItems: 'center',
-    aspectRatio: 0.86,
+    aspectRatio: 0.72,
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     overflow: 'hidden',

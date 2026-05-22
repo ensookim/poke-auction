@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   formatPrice,
@@ -22,27 +23,36 @@ import auctionService, { AuctionResponse } from '@/services/auctionService';
 
 export default function MyBids() {
   const { isLoading, isSignedIn } = useAuth();
+  const insets = useSafeAreaInsets();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const data = await auctionService.getAuctionsByBidder();
-        setAuctions(data);
-      } catch (error) {
-        Alert.alert(
-          '오류',
-          error instanceof Error ? error.message : '불러오기 실패',
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await auctionService.getAuctionsByBidder();
+      setAuctions(data);
+    } catch (error) {
+      Alert.alert(
+        '오류',
+        error instanceof Error ? error.message : '불러오기 실패',
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSignedIn) {
+        load();
+      }
+    }, [isSignedIn, load]),
+  );
 
   const stats = useMemo(
     () => ({
@@ -65,10 +75,14 @@ export default function MyBids() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 40 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -120,7 +134,7 @@ export default function MyBids() {
                     <Image
                       source={{ uri: auction.imageUrl }}
                       style={styles.image}
-                      contentFit="contain"
+                      contentFit="cover"
                     />
                   </View>
                   <View style={styles.itemBody}>
@@ -150,7 +164,7 @@ export default function MyBids() {
           </View>
         )}
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -257,7 +271,7 @@ const styles = StyleSheet.create({
   imageFrame: {
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    height: 136,
+    aspectRatio: 0.72,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',

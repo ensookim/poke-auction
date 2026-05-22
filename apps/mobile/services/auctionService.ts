@@ -187,6 +187,34 @@ class AuctionService {
     return response.data;
   }
 
+  async deleteAuction(auctionId: number): Promise<void> {
+    await this.client.delete(`/api/auctions/${auctionId}`);
+  }
+
+  async uploadAuctionImage(imageUri: string): Promise<string> {
+    const filename = imageUri.split('/').pop() || `auction-${Date.now()}.jpg`;
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const mimeType =
+      extension === 'png'
+        ? 'image/png'
+        : extension === 'webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+    const formData = new FormData();
+
+    formData.append('file', {
+      uri: imageUri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob);
+
+    const response = await this.client.post<{ imageUrl: string }>(
+      '/api/auctions/images',
+      formData,
+    );
+    return response.data.imageUrl;
+  }
+
   async submitShippingInfo(
     auctionId: number,
     request: ShippingInfoRequest,

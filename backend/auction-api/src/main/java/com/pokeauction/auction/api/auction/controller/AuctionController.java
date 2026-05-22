@@ -11,10 +11,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auctions")
@@ -40,6 +47,38 @@ public class AuctionController {
     ) {
         Long userId = resolveUserId(authorization);
         return auctionService.createAuction(request, userId);
+    }
+
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> uploadImage(
+            @RequestPart("file") MultipartFile file,
+            HttpServletRequest servletRequest
+    ) {
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일이 비어 있습니다.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일만 업로드할 수 있습니다.");
+        }
+
+        try {
+            Path uploadDir = Path.of("uploads").toAbsolutePath().normalize();
+            Files.createDirectories(uploadDir);
+
+            String extension = resolveExtension(file.getOriginalFilename(), contentType);
+            String filename = UUID.randomUUID() + extension;
+            Path target = uploadDir.resolve(filename).normalize();
+            file.transferTo(target);
+
+            String baseUrl = servletRequest.getRequestURL()
+                    .toString()
+                    .replace(servletRequest.getRequestURI(), "");
+            return Map.of("imageUrl", baseUrl + "/uploads/" + filename);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 저장에 실패했습니다.", ex);
+        }
     }
 
     @PostMapping("/{id}/bid")
@@ -84,6 +123,16 @@ public class AuctionController {
         return auctionService.getAuctionDetails(id);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteAuction(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        auctionService.deleteAuction(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/shipping-info")
     public AuctionResponse submitShippingInfo(
             @PathVariable Long id,
@@ -121,5 +170,28 @@ public class AuctionController {
         }
 
         return jwtProvider.parseUserId(token);
+    }
+
+    private String resolveExtension(String originalFilename, String contentType) {
+        if (originalFilename != null) {
+            String lower = originalFilename.toLowerCase();
+            if (lower.endsWith(".png")) {
+                return ".png";
+            }
+            if (lower.endsWith(".webp")) {
+                return ".webp";
+            }
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+                return ".jpg";
+            }
+        }
+
+        if ("image/png".equals(contentType)) {
+            return ".png";
+        }
+        if ("image/webp".equals(contentType)) {
+            return ".webp";
+        }
+        return ".jpg";
     }
 }

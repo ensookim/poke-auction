@@ -12,7 +12,8 @@ import {
 import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   TRUST_BADGES,
@@ -33,6 +34,7 @@ import commerceService, {
 export default function AuctionDetail() {
   const { isSignedIn, user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const id = Number(params.id);
   const [auction, setAuction] = useState<AuctionResponse | null>(null);
@@ -72,6 +74,12 @@ export default function AuctionDetail() {
   useEffect(() => {
     loadAuction();
   }, [loadAuction]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAuction();
+    }, [loadAuction]),
+  );
 
   useEffect(() => {
     if (!isSignedIn || !id) {
@@ -326,10 +334,14 @@ export default function AuctionDetail() {
   const isWinner = auction.winnerId === user?.id;
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 42 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
@@ -361,7 +373,7 @@ export default function AuctionDetail() {
           <Image
             source={{ uri: auction.imageUrl }}
             style={styles.cardImage}
-            contentFit="contain"
+            contentFit="cover"
             transition={180}
           />
         </View>
@@ -676,7 +688,7 @@ export default function AuctionDetail() {
           )}
         </View>
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -725,7 +737,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     marginBottom: 14,
-    minHeight: 338,
+    aspectRatio: 0.72,
     overflow: 'hidden',
     padding: 18,
     position: 'relative',
@@ -757,7 +769,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   cardImage: {
-    height: 320,
+    aspectRatio: 0.72,
     position: 'relative',
     width: '100%',
   },

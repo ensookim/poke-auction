@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,15 +24,10 @@ import chatService, {
 
 type SocketConnection = Awaited<ReturnType<typeof chatService.openSocket>>;
 
-const QUICK_MESSAGES = [
-  '실물 앞뒤 사진 더 볼 수 있을까요?',
-  '모서리나 표면 하자 있나요?',
-  '탑로더/박스 포장 가능할까요?',
-] as const;
-
 export default function ChatRoomScreen() {
   const params = useLocalSearchParams();
   const roomId = Number(params.id);
+  const insets = useSafeAreaInsets();
   const { isLoading, isSignedIn, user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [text, setText] = useState('');
@@ -57,7 +53,9 @@ export default function ChatRoomScreen() {
       } catch (error) {
         Alert.alert(
           '문의 오류',
-          error instanceof Error ? error.message : '판매자와 연결하지 못했습니다.',
+          error instanceof Error
+            ? error.message
+            : '판매자와 연결하지 못했습니다.',
         );
       } finally {
         if (mounted) {
@@ -123,10 +121,11 @@ export default function ChatRoomScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={insets.top}
       >
         <View style={styles.shell}>
           <View style={styles.header}>
@@ -139,19 +138,32 @@ export default function ChatRoomScreen() {
                 {connected ? '실시간 연결됨' : '연결 준비 중'}
               </ThemedText>
             </View>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/messages' as any)}>
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#111827" />
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => router.push('/messages' as any)}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={20}
+                color="#111827"
+              />
             </Pressable>
           </View>
 
           <ScrollView
             style={styles.messages}
-            contentContainerStyle={styles.messageContent}
+            contentContainerStyle={[
+              styles.messageContent,
+              { paddingBottom: 14 + insets.bottom },
+            ]}
+            contentInsetAdjustmentBehavior="automatic"
             showsVerticalScrollIndicator={false}
           >
             {messages.length === 0 ? (
               <View style={styles.emptyState}>
-                <ThemedText style={styles.emptyTitle}>아직 메시지가 없어요</ThemedText>
+                <ThemedText style={styles.emptyTitle}>
+                  아직 메시지가 없어요
+                </ThemedText>
                 <ThemedText style={styles.emptyText}>
                   상품 상태, 직거래 가능 여부, 배송 정보를 물어보세요.
                 </ThemedText>
@@ -166,12 +178,18 @@ export default function ChatRoomScreen() {
                   >
                     <View style={[styles.bubble, mine && styles.myBubble]}>
                       <ThemedText
-                        style={[styles.messageText, mine && styles.myMessageText]}
+                        style={[
+                          styles.messageText,
+                          mine && styles.myMessageText,
+                        ]}
                       >
                         {message.content}
                       </ThemedText>
                       <ThemedText
-                        style={[styles.messageTime, mine && styles.myMessageTime]}
+                        style={[
+                          styles.messageTime,
+                          mine && styles.myMessageTime,
+                        ]}
                       >
                         {new Date(message.createdAt).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -184,24 +202,6 @@ export default function ChatRoomScreen() {
               })
             )}
           </ScrollView>
-
-          {text.trim().length === 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.quickMessages}
-            >
-              {QUICK_MESSAGES.map((message) => (
-                <Pressable
-                  key={message}
-                  style={styles.quickMessageChip}
-                  onPress={() => setText(message)}
-                >
-                  <ThemedText style={styles.quickMessageText}>{message}</ThemedText>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : null}
 
           <View style={styles.inputBar}>
             <TextInput
@@ -218,7 +218,7 @@ export default function ChatRoomScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 

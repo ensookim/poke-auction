@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AUCTION_CATEGORIES,
@@ -33,6 +34,7 @@ import { palette, shadow, typography } from '@/constants/ui';
 export default function BuyScreen() {
   const params = useLocalSearchParams<{ category?: AuctionCategoryKey; q?: string }>();
   const { isLoading, isSignedIn } = useAuth();
+  const insets = useSafeAreaInsets();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<AuctionCategoryKey>(
     params.category ?? 'ALL',
@@ -71,6 +73,14 @@ export default function BuyScreen() {
   useEffect(() => {
     loadAuctions();
   }, [loadAuctions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSignedIn) {
+        loadAuctions();
+      }
+    }, [isSignedIn, loadAuctions]),
+  );
 
   useEffect(() => {
     if (params.category) {
@@ -140,10 +150,14 @@ export default function BuyScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 36 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -364,7 +378,7 @@ export default function BuyScreen() {
                     <Image
                       source={{ uri: auction.imageUrl }}
                       style={styles.auctionImage}
-                      contentFit="contain"
+                      contentFit="cover"
                       transition={150}
                     />
                   </View>
@@ -418,7 +432,7 @@ export default function BuyScreen() {
           </View>
         )}
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -643,7 +657,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
-    minHeight: 180,
+    aspectRatio: 0.72,
     overflow: 'hidden',
     position: 'relative',
     width: 132,

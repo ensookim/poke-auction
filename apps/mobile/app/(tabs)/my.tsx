@@ -8,8 +8,9 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   formatPrice,
@@ -25,19 +26,21 @@ import commerceService, {
   CollectionItemResponse,
 } from '@/services/commerceService';
 
-type MyTab = 'bids' | 'wishlist' | 'cart' | 'listings' | 'profile';
+type MyTab = 'listings' | 'bids' | 'won' | 'wishlist' | 'cart' | 'profile';
 
 const tabs: { key: MyTab; label: string }[] = [
+  { key: 'listings', label: '판매중' },
   { key: 'bids', label: '입찰' },
+  { key: 'won', label: '낙찰' },
   { key: 'wishlist', label: '찜' },
   { key: 'cart', label: '장바구니' },
-  { key: 'listings', label: '판매글' },
-  { key: 'profile', label: '내 정보' },
+  { key: 'profile', label: '정보' },
 ];
 
 export default function MyScreen() {
   const { isLoading, isSignedIn, user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<MyTab>('bids');
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<MyTab>('listings');
   const [bids, setBids] = useState<AuctionResponse[]>([]);
   const [listings, setListings] = useState<AuctionResponse[]>([]);
   const [wishlist, setWishlist] = useState<CollectionItemResponse[]>([]);
@@ -73,6 +76,14 @@ export default function MyScreen() {
       loadMyPage();
     }
   }, [isSignedIn, loadMyPage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSignedIn) {
+        loadMyPage();
+      }
+    }, [isSignedIn, loadMyPage]),
+  );
 
   const stats = useMemo(
     () => ({
@@ -112,6 +123,19 @@ export default function MyScreen() {
     }
   };
 
+  const handleDeleteListing = async (auctionId: number) => {
+    try {
+      await auctionService.deleteAuction(auctionId);
+      setListings((prev) => prev.filter((item) => item.id !== auctionId));
+      await loadMyPage();
+    } catch (error) {
+      Alert.alert(
+        '삭제 실패',
+        error instanceof Error ? error.message : '상품을 삭제하지 못했습니다.',
+      );
+    }
+  };
+
   if (isLoading || loading) {
     return (
       <ThemedView style={styles.centered}>
@@ -125,10 +149,14 @@ export default function MyScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: 40 + insets.bottom },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -198,12 +226,22 @@ export default function MyScreen() {
           />
         ) : null}
 
+        {activeTab === 'won' ? (
+          <AuctionList
+            auctions={bids.filter((auction) => auction.winnerId === user?.id)}
+            emptyTitle="낙찰된 경매가 없어요"
+            emptyAction="경매 보러가기"
+            onEmptyPress={() => router.push('/buy')}
+          />
+        ) : null}
+
         {activeTab === 'listings' ? (
           <AuctionList
             auctions={listings}
             emptyTitle="등록한 판매글이 없어요"
             emptyAction="경매 등록하기"
             onEmptyPress={() => router.push('/sell')}
+            onDelete={handleDeleteListing}
           />
         ) : null}
 
@@ -261,7 +299,7 @@ export default function MyScreen() {
           </View>
         ) : null}
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
@@ -270,11 +308,13 @@ function AuctionList({
   emptyTitle,
   emptyAction,
   onEmptyPress,
+  onDelete,
 }: {
   auctions: AuctionResponse[];
   emptyTitle: string;
   emptyAction: string;
   onEmptyPress: () => void;
+  onDelete?: (auctionId: number) => void;
 }) {
   if (auctions.length === 0) {
     return (
@@ -303,7 +343,7 @@ function AuctionList({
               <Image
                 source={{ uri: auction.imageUrl }}
                 style={styles.image}
-                contentFit="contain"
+                contentFit="cover"
               />
             </View>
             <View style={styles.itemBody}>
@@ -324,6 +364,19 @@ function AuctionList({
               <ThemedText style={styles.itemPrice}>
                 {formatPrice(auction.currentPrice)}
               </ThemedText>
+              {onDelete ? (
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => onDelete(auction.id)}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={14}
+                    color={palette.brandDark}
+                  />
+                  <ThemedText style={styles.deleteButtonText}>삭제</ThemedText>
+                </Pressable>
+              ) : null}
             </View>
           </Pressable>
         );
@@ -548,7 +601,7 @@ const styles = StyleSheet.create({
   imageFrame: {
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    height: 136,
+    aspectRatio: 0.72,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
@@ -599,6 +652,22 @@ const styles = StyleSheet.create({
   itemPrice: {
     color: palette.ink,
     fontSize: 18,
+    fontWeight: '900',
+  },
+  deleteButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF1F2',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  deleteButtonText: {
+    color: palette.brandDark,
+    fontSize: 12,
     fontWeight: '900',
   },
   emptyState: {
