@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -41,6 +42,12 @@ const durationOptions = [
 
 const pricePresets = ['1000', '5000', '10000', '30000'];
 const incrementPresets = ['100', '500', '1000', '5000'];
+const cardImagePickerOptions: ImagePicker.ImagePickerOptions = {
+  allowsEditing: true,
+  aspect: [5, 7],
+  mediaTypes: ['images'],
+  quality: 0.9,
+};
 
 export default function SellScreen() {
   const { isLoading, isSignedIn } = useAuth();
@@ -52,7 +59,7 @@ export default function SellScreen() {
   const [cardGrade, setCardGrade] =
     useState<(typeof GRADE_OPTIONS)[number]>('미감정');
   const [cardCondition, setCardCondition] =
-    useState<(typeof CONDITION_OPTIONS)[number]>('민트');
+    useState<(typeof CONDITION_OPTIONS)[number]>('최상');
   const [cardLanguage, setCardLanguage] =
     useState<(typeof LANGUAGE_OPTIONS)[number]>('한국어');
   const [cardCategory, setCardCategory] =
@@ -77,7 +84,7 @@ export default function SellScreen() {
     setCardRarity('');
     setCardEdition('일반판');
     setCardGrade('미감정');
-    setCardCondition('민트');
+    setCardCondition('최상');
     setCardLanguage('한국어');
     setCardCategory('POKEMON');
     setImageUrl('');
@@ -95,9 +102,40 @@ export default function SellScreen() {
     [cardEdition, cardGrade, cardRarity],
   );
 
+  const pickImageFromLibrary = useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('사진 접근 필요', '앨범에서 카드 사진을 선택하려면 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync(cardImagePickerOptions);
+    if (!result.canceled) {
+      setImageUrl(result.assets[0].uri);
+    }
+  }, []);
+
+  const takePhoto = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('카메라 접근 필요', '카드 사진을 촬영하려면 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync(cardImagePickerOptions);
+    if (!result.canceled) {
+      setImageUrl(result.assets[0].uri);
+    }
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!cardName.trim()) {
       Alert.alert('등록 오류', '카드 이름을 입력해주세요.');
+      return;
+    }
+
+    if (!imageUrl) {
+      Alert.alert('등록 오류', '카드 사진을 선택하거나 촬영해주세요.');
       return;
     }
 
@@ -216,12 +254,12 @@ export default function SellScreen() {
               <Image
                 source={{ uri: imageUrl }}
                 style={styles.previewImage}
-                contentFit="contain"
+                contentFit="cover"
               />
             ) : (
               <View style={styles.previewEmpty}>
-                <Ionicons name="image" size={34} color="#CBD5E1" />
-                <ThemedText style={styles.previewEmptyText}>이미지 URL</ThemedText>
+                <Ionicons name="image-outline" size={34} color="#CBD5E1" />
+                <ThemedText style={styles.previewEmptyText}>카드 사진</ThemedText>
               </View>
             )}
           </View>
@@ -267,6 +305,20 @@ export default function SellScreen() {
             </View>
           </View>
         </View>
+
+        <View style={styles.photoActions}>
+          <Pressable style={styles.photoButton} onPress={pickImageFromLibrary}>
+            <Ionicons name="images-outline" size={18} color={palette.ink} />
+            <ThemedText style={styles.photoButtonText}>앨범에서 선택</ThemedText>
+          </Pressable>
+          <Pressable style={styles.photoButton} onPress={takePhoto}>
+            <Ionicons name="camera-outline" size={18} color={palette.ink} />
+            <ThemedText style={styles.photoButtonText}>사진 촬영</ThemedText>
+          </Pressable>
+        </View>
+        <ThemedText style={styles.photoHelper}>
+          선택한 사진은 카드 비율에 맞게 자른 뒤 등록됩니다.
+        </ThemedText>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -329,22 +381,13 @@ export default function SellScreen() {
             placeholderTextColor={palette.subtle}
             style={styles.input}
           />
-          <View style={styles.row}>
-            <TextInput
-              value={cardRarity}
-              onChangeText={setCardRarity}
-              placeholder="세부 레어도 예: UR, SR"
-              placeholderTextColor={palette.subtle}
-              style={[styles.input, styles.flexInput]}
-            />
-            <TextInput
-              value={imageUrl}
-              onChangeText={setImageUrl}
-              placeholder="이미지 URL"
-              placeholderTextColor={palette.subtle}
-              style={[styles.input, styles.flexInput]}
-            />
-          </View>
+          <TextInput
+            value={cardRarity}
+            onChangeText={setCardRarity}
+            placeholder="세부 레어도 예: UR, SR"
+            placeholderTextColor={palette.subtle}
+            style={styles.input}
+          />
 
           <View style={styles.optionBlock}>
             <ThemedText style={styles.optionLabel}>판본</ThemedText>
@@ -636,7 +679,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flexDirection: 'row',
     gap: 14,
-    marginBottom: 20,
+    marginBottom: 10,
     padding: 14,
     ...shadow,
   },
@@ -720,6 +763,34 @@ const styles = StyleSheet.create({
     color: palette.brandDark,
     fontSize: 11,
     fontWeight: '900',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  photoButton: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: 13,
+  },
+  photoButtonText: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  photoHelper: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 20,
   },
   section: {
     marginBottom: 20,

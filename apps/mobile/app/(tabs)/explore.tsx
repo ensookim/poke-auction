@@ -71,7 +71,7 @@ export default function ExploreScreen() {
         <View style={styles.noticePanel}>
           <ThemedText style={styles.noticeTitle}>등록 전 체크</ThemedText>
           <ThemedText style={styles.noticeText}>
-            카드 상태, 언어, 구성품, 이미지 URL을 명확히 적으면 입찰 전환이
+            카드 상태, 언어, 구성품, 사진을 명확히 올리면 입찰 전환이
             좋아집니다.
           </ThemedText>
         </View>

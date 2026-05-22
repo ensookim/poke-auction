@@ -117,11 +117,11 @@ export default function HomeScreen() {
             <ThemedText style={styles.greeting}>{user.nickname}님</ThemedText>
           </View>
           <View style={styles.headerActions}>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/messages')}>
-              <Ionicons name="chatbubble-ellipses" size={21} color={palette.ink} />
+          <Pressable style={styles.iconButton} onPress={() => router.push('/messages')}>
+              <Ionicons name="chatbubble-ellipses-outline" size={21} color={palette.ink} />
             </Pressable>
             <Pressable style={styles.iconButton} onPress={() => router.push('/sell')}>
-              <Ionicons name="add" size={24} color={palette.ink} />
+              <Ionicons name="camera-outline" size={22} color={palette.ink} />
             </Pressable>
           </View>
         </View>
@@ -146,21 +146,21 @@ export default function HomeScreen() {
 
         <View style={styles.quickRow}>
           <Pressable style={styles.quickCard} onPress={() => router.push('/buy')}>
-            <Ionicons name="search" size={19} color={palette.brand} />
+            <Ionicons name="search-outline" size={19} color={palette.brand} />
             <View style={styles.quickCopy}>
-              <ThemedText style={styles.quickTitle}>탐색</ThemedText>
+              <ThemedText style={styles.quickTitle}>검색</ThemedText>
               <ThemedText style={styles.quickMeta}>필터로 찾기</ThemedText>
             </View>
           </Pressable>
           <Pressable style={styles.quickCard} onPress={() => router.push('/sell')}>
-            <Ionicons name="camera" size={19} color={palette.brand} />
+            <Ionicons name="camera-outline" size={19} color={palette.brand} />
             <View style={styles.quickCopy}>
               <ThemedText style={styles.quickTitle}>등록</ThemedText>
               <ThemedText style={styles.quickMeta}>경매 열기</ThemedText>
             </View>
           </Pressable>
           <Pressable style={styles.quickCard} onPress={() => router.push('/my' as any)}>
-            <Ionicons name="person-circle" size={19} color={palette.brand} />
+            <Ionicons name="person-outline" size={19} color={palette.brand} />
             <View style={styles.quickCopy}>
               <ThemedText style={styles.quickTitle}>MY</ThemedText>
               <ThemedText style={styles.quickMeta}>활동관리</ThemedText>

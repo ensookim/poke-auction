@@ -364,7 +364,7 @@ export default function AuctionDetail() {
                 onPress={handleContactSeller}
                 disabled={isCreatingChat}
               >
-                <Ionicons name="chatbubbles" size={16} color={palette.ink} />
+                <Ionicons name="chatbubble-ellipses-outline" size={16} color={palette.ink} />
                 <ThemedText style={styles.sellerChatText}>
                   {isCreatingChat ? '연결중' : '1:1 문의'}
                 </ThemedText>

@@ -38,6 +38,13 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "경매에 올릴 카드 사진을 앨범에서 선택하기 위해 필요합니다.",
+          "cameraPermission": "경매에 올릴 카드 사진을 촬영하기 위해 필요합니다."
+        }
       ]
     ],
     "experiments": {

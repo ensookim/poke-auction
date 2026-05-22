@@ -149,7 +149,7 @@ export default function BuyScreen() {
         <View style={styles.header}>
           <ThemedText style={styles.eyebrow}>SEARCH</ThemedText>
           <ThemedText type="title" style={styles.title}>
-            탐색
+            검색
           </ThemedText>
         </View>
 

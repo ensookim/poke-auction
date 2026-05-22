@@ -193,7 +193,7 @@ export default function MyScreen() {
           <AuctionList
             auctions={bids}
             emptyTitle="아직 입찰한 경매가 없어요"
-            emptyAction="경매 탐색하기"
+            emptyAction="경매 검색하기"
             onEmptyPress={() => router.push('/buy')}
           />
         ) : null}
@@ -252,7 +252,7 @@ export default function MyScreen() {
           <View style={styles.profilePanel}>
             <InfoRow icon="person" label="닉네임" value={user?.nickname ?? '-'} />
             <InfoRow icon="card" label="회원번호" value={`#${user?.id ?? '-'}`} />
-            <InfoRow icon="chatbubbles" label="거래 문의" value="판매자 1:1 메시지" />
+            <InfoRow icon="chatbubble-ellipses-outline" label="거래 문의" value="판매자 1:1 메시지" />
             <InfoRow icon="notifications" label="경매 알림" value="마감 임박 알림 준비중" />
             <Pressable style={styles.logoutButton} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={18} color={palette.brandDark} />

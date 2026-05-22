@@ -24,7 +24,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '진행중인 경매',
     tint: '#111827',
     background: '#F2F4F7',
-    icon: 'grid',
+    icon: 'grid-outline',
   },
   {
     key: 'POKEMON',
@@ -32,7 +32,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '포켓몬 카드/프로모',
     tint: '#0F766E',
     background: '#E7F7F3',
-    icon: 'flash',
+    icon: 'diamond-outline',
   },
   {
     key: 'YUGIOH',
@@ -40,7 +40,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: 'OCG/TCG/레어 카드',
     tint: '#A16207',
     background: '#FFF4D6',
-    icon: 'sparkles',
+    icon: 'sparkles-outline',
   },
   {
     key: 'ONE_PIECE',
@@ -48,7 +48,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: 'OPCG/프로모/한정판',
     tint: '#6D28D9',
     background: '#F0E7FF',
-    icon: 'boat',
+    icon: 'flag-outline',
   },
   {
     key: 'SPORTS',
@@ -56,7 +56,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '야구/축구/농구 카드',
     tint: '#BE123C',
     background: '#FFE5EC',
-    icon: 'baseball',
+    icon: 'trophy-outline',
   },
   {
     key: 'MAGIC',
@@ -64,7 +64,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: 'MTG/영문 카드',
     tint: '#2563EB',
     background: '#DBEAFE',
-    icon: 'color-wand',
+    icon: 'color-wand-outline',
   },
   {
     key: 'DIGIMON',
@@ -72,7 +72,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '디지몬 카드게임',
     tint: '#EA580C',
     background: '#FFEDD5',
-    icon: 'game-controller',
+    icon: 'hardware-chip-outline',
   },
   {
     key: 'ETC',
@@ -80,7 +80,7 @@ export const AUCTION_CATEGORIES: {
     subtitle: '그 외 수집 카드',
     tint: '#475569',
     background: '#E2E8F0',
-    icon: 'albums',
+    icon: 'albums-outline',
   },
 ];
 
@@ -93,11 +93,11 @@ export const SORT_OPTIONS = [
 
 export const TRUST_BADGES = [
   { icon: 'shield-checkmark', label: '안전거래' },
-  { icon: 'chatbubbles', label: '1:1 문의' },
+  { icon: 'chatbubble-ellipses-outline', label: '1:1 문의' },
   { icon: 'time', label: '마감 알림' },
 ] as const;
 
-export const CONDITION_OPTIONS = ['미개봉', '민트', '상급', '플레이용'] as const;
+export const CONDITION_OPTIONS = ['미개봉', '최상', '상', '중', '하'] as const;
 
 export const LANGUAGE_OPTIONS = ['한국어', '일본어', '영어', '기타'] as const;
 

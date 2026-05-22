@@ -140,7 +140,7 @@ export default function ChatRoomScreen() {
               </ThemedText>
             </View>
             <Pressable style={styles.iconButton} onPress={() => router.push('/messages' as any)}>
-              <Ionicons name="chatbubbles" size={20} color="#111827" />
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#111827" />
             </Pressable>
           </View>
 
