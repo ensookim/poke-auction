@@ -88,7 +88,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void joinRoom(WebSocketSession session, Long userId, Long roomId) throws IOException {
         if (roomId == null) {
-            sendToSession(session, ChatSocketEvent.error("채팅방 정보가 필요합니다."));
+            sendToSession(session, ChatSocketEvent.error("문의 정보를 찾을 수 없습니다."));
             return;
         }
 

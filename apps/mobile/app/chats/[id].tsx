@@ -23,6 +23,12 @@ import chatService, {
 
 type SocketConnection = Awaited<ReturnType<typeof chatService.openSocket>>;
 
+const QUICK_MESSAGES = [
+  '실물 앞뒤 사진 더 볼 수 있을까요?',
+  '모서리나 표면 하자 있나요?',
+  '탑로더/박스 포장 가능할까요?',
+] as const;
+
 export default function ChatRoomScreen() {
   const params = useLocalSearchParams();
   const roomId = Number(params.id);
@@ -50,8 +56,8 @@ export default function ChatRoomScreen() {
         socketRef.current = socket;
       } catch (error) {
         Alert.alert(
-          '채팅 오류',
-          error instanceof Error ? error.message : '채팅을 연결하지 못했습니다.',
+          '문의 오류',
+          error instanceof Error ? error.message : '판매자와 연결하지 못했습니다.',
         );
       } finally {
         if (mounted) {
@@ -90,7 +96,7 @@ export default function ChatRoomScreen() {
     }
 
     if (event.type === 'ERROR' && event.error) {
-      Alert.alert('채팅 오류', event.error);
+      Alert.alert('문의 오류', event.error);
     }
   };
 
@@ -128,7 +134,7 @@ export default function ChatRoomScreen() {
               <Ionicons name="chevron-back" size={22} color="#111827" />
             </Pressable>
             <View style={styles.headerCopy}>
-              <ThemedText style={styles.title}>1:1 대화</ThemedText>
+              <ThemedText style={styles.title}>1:1 문의</ThemedText>
               <ThemedText style={styles.connectionText}>
                 {connected ? '실시간 연결됨' : '연결 준비 중'}
               </ThemedText>
@@ -178,6 +184,24 @@ export default function ChatRoomScreen() {
               })
             )}
           </ScrollView>
+
+          {text.trim().length === 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickMessages}
+            >
+              {QUICK_MESSAGES.map((message) => (
+                <Pressable
+                  key={message}
+                  style={styles.quickMessageChip}
+                  onPress={() => setText(message)}
+                >
+                  <ThemedText style={styles.quickMessageText}>{message}</ThemedText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
 
           <View style={styles.inputBar}>
             <TextInput
@@ -310,6 +334,23 @@ const styles = StyleSheet.create({
   },
   myMessageTime: {
     color: '#CBD5E1',
+  },
+  quickMessages: {
+    gap: 8,
+    paddingBottom: 10,
+  },
+  quickMessageChip: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  quickMessageText: {
+    color: '#4B5563',
+    fontSize: 12,
+    fontWeight: '800',
   },
   inputBar: {
     alignItems: 'flex-end',

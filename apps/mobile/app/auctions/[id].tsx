@@ -194,8 +194,8 @@ export default function AuctionDetail() {
       router.push(`/chats/${room.id}` as any);
     } catch (error) {
       Alert.alert(
-        '채팅방 생성 실패',
-        error instanceof Error ? error.message : '채팅방을 만들지 못했습니다.',
+        '문의 연결 실패',
+        error instanceof Error ? error.message : '판매자와 연결하지 못했습니다.',
       );
     } finally {
       setIsCreatingChat(false);
@@ -366,7 +366,7 @@ export default function AuctionDetail() {
               >
                 <Ionicons name="chatbubbles" size={16} color={palette.ink} />
                 <ThemedText style={styles.sellerChatText}>
-                  {isCreatingChat ? '연결중' : '문의'}
+                  {isCreatingChat ? '연결중' : '1:1 문의'}
                 </ThemedText>
               </Pressable>
             ) : null}
@@ -516,6 +516,22 @@ export default function AuctionDetail() {
 
         <View style={styles.trustPanel}>
           <ThemedText style={styles.panelTitle}>거래 체크포인트</ThemedText>
+          <View style={styles.checklist}>
+            <View style={styles.checkItem}>
+              <Ionicons name="camera" size={17} color={palette.ink} />
+              <View style={styles.checkCopy}>
+                <ThemedText style={styles.checkTitle}>실물 사진 확인</ThemedText>
+                <ThemedText style={styles.checkText}>앞면, 뒷면, 모서리 사진을 요청하세요.</ThemedText>
+              </View>
+            </View>
+            <View style={styles.checkItem}>
+              <Ionicons name="cube" size={17} color={palette.ink} />
+              <View style={styles.checkCopy}>
+                <ThemedText style={styles.checkTitle}>포장/배송 확인</ThemedText>
+                <ThemedText style={styles.checkText}>탑로더, 박스 포장, 송장 공유 여부를 확인하세요.</ThemedText>
+              </View>
+            </View>
+          </View>
           <View style={styles.trustGrid}>
             {TRUST_BADGES.map((badge) => (
               <View key={badge.label} style={styles.trustItem}>
@@ -525,7 +541,7 @@ export default function AuctionDetail() {
             ))}
           </View>
           <ThemedText style={styles.trustHelper}>
-            낙찰 전 사진, 상태, 배송 방법은 판매자와 1:1 대화로 확인하세요.
+            낙찰 전 사진, 상태, 배송 방법은 판매자와 1:1 문의로 확인하세요.
           </ThemedText>
         </View>
 
@@ -940,6 +956,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
     padding: 18,
+  },
+  checklist: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  checkItem: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  checkCopy: {
+    flex: 1,
+  },
+  checkTitle: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  checkText: {
+    color: palette.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   trustGrid: {
     flexDirection: 'row',

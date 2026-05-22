@@ -28,8 +28,8 @@ export default function ChatRoomsScreen() {
         setRooms(await chatService.getRooms());
       } catch (error) {
         Alert.alert(
-          '채팅 오류',
-          error instanceof Error ? error.message : '채팅방을 불러오지 못했습니다.',
+          '문의 오류',
+          error instanceof Error ? error.message : '문의 내역을 불러오지 못했습니다.',
         );
       } finally {
         setLoading(false);
@@ -71,19 +71,19 @@ export default function ChatRoomsScreen() {
         <View style={styles.header}>
           <ThemedText style={styles.eyebrow}>CHAT</ThemedText>
           <ThemedText type="title" style={styles.title}>
-            1:1 대화
+            1:1 문의
           </ThemedText>
           <ThemedText style={styles.subtitle}>
-            구매자와 판매자가 경매별로 안전하게 대화합니다.
+            상품별로 판매자와 직접 메시지를 주고받을 수 있어요.
           </ThemedText>
         </View>
 
         {rooms.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="chatbubble-ellipses" size={34} color="#9CA3AF" />
-            <ThemedText style={styles.emptyTitle}>아직 대화방이 없어요</ThemedText>
+            <ThemedText style={styles.emptyTitle}>아직 문의 내역이 없어요</ThemedText>
             <ThemedText style={styles.emptyText}>
-              경매 상세 화면에서 판매자 문의를 눌러 대화를 시작하세요.
+              경매 상세 화면에서 1:1 문의를 눌러 판매자에게 메시지를 보내세요.
             </ThemedText>
           </View>
         ) : (

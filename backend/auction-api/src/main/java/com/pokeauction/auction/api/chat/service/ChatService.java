@@ -35,7 +35,7 @@ public class ChatService {
         }
 
         if (auction.getCreatedBy().getId().equals(buyerId)) {
-            throw new IllegalArgumentException("자신의 경매에는 문의방을 만들 수 없습니다.");
+            throw new IllegalArgumentException("자신의 상품에는 문의할 수 없습니다.");
         }
 
         User buyer = userRepository.findById(buyerId)
@@ -100,10 +100,10 @@ public class ChatService {
 
     private ChatRoom getRoomForParticipant(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("문의 내역을 찾을 수 없습니다."));
 
         if (!room.hasParticipant(userId)) {
-            throw new IllegalArgumentException("채팅방에 접근할 수 없습니다.");
+            throw new IllegalArgumentException("이 문의에 접근할 수 없습니다.");
         }
 
         return room;

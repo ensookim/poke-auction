@@ -243,6 +243,21 @@ export default function BuyScreen() {
           <ThemedText style={styles.resultMeta}>실시간 진행중</ThemedText>
         </View>
 
+        <View style={styles.buyerGuide}>
+          <View style={styles.guideItem}>
+            <Ionicons name="heart" size={17} color={palette.brand} />
+            <ThemedText style={styles.guideText}>찜한 상품은 MY에서 비교</ThemedText>
+          </View>
+          <View style={styles.guideItem}>
+            <Ionicons name="cart" size={17} color={palette.brand} />
+            <ThemedText style={styles.guideText}>즉시 낙찰 상품은 장바구니 결제</ThemedText>
+          </View>
+          <View style={styles.guideItem}>
+            <Ionicons name="chatbubble-ellipses" size={17} color={palette.brand} />
+            <ThemedText style={styles.guideText}>입찰 전 판매자에게 1:1 문의</ThemedText>
+          </View>
+        </View>
+
         {visibleAuctions.length === 0 ? (
           <View style={styles.emptyState}>
             <ThemedText style={styles.emptyTitle}>조건에 맞는 경매가 없어요</ThemedText>
@@ -476,6 +491,26 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 12,
     fontWeight: '700',
+  },
+  buyerGuide: {
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 14,
+    padding: 14,
+  },
+  guideItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+  },
+  guideText: {
+    color: palette.ink,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
   },
   cardList: {
     gap: 12,
