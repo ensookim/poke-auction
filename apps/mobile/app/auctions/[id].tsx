@@ -43,6 +43,12 @@ export default function AuctionDetail() {
   const [collectionStatus, setCollectionStatus] =
     useState<CollectionStatusResponse | null>(null);
   const [isSavingCollection, setIsSavingCollection] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [addressDetail, setAddressDetail] = useState('');
+  const [deliveryMemo, setDeliveryMemo] = useState('');
+  const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
 
   const loadAuction = useCallback(async () => {
     if (!id) {
@@ -270,6 +276,35 @@ export default function AuctionDetail() {
     });
   };
 
+  const handleSubmitShipping = async () => {
+    if (!auction) {
+      return;
+    }
+
+    if (!recipientName.trim() || !phoneNumber.trim() || !address.trim()) {
+      Alert.alert('배송정보 확인', '수령인, 연락처, 주소를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmittingShipping(true);
+      const updated = await auctionService.submitShippingInfo(auction.id, {
+        recipientName: recipientName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        address: address.trim(),
+        addressDetail: addressDetail.trim(),
+        deliveryMemo: deliveryMemo.trim(),
+      });
+      setAuction(updated);
+      Alert.alert('배송정보 전송 완료', '판매자 1:1 문의에 배송정보가 전달되었습니다.');
+      setDeliveryMemo('');
+    } catch (error) {
+      Alert.alert('배송정보 전송 실패', getErrorMessage(error));
+    } finally {
+      setIsSubmittingShipping(false);
+    }
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.centered}>
@@ -288,6 +323,7 @@ export default function AuctionDetail() {
 
   const category = getCategoryMeta(auction.cardCategory);
   const isOwner = auction.creatorId === user?.id;
+  const isWinner = auction.winnerId === user?.id;
 
   return (
     <ThemedView style={styles.container}>
@@ -513,6 +549,67 @@ export default function AuctionDetail() {
             <ThemedText style={styles.closedText}>이 경매는 종료되었습니다.</ThemedText>
           </View>
         )}
+
+        {!auction.active && isWinner ? (
+          <View style={styles.shippingPanel}>
+            <View style={styles.shippingHeader}>
+              <Ionicons name="location-outline" size={19} color={palette.brand} />
+              <ThemedText style={styles.panelTitle}>배송정보 입력</ThemedText>
+            </View>
+            <ThemedText style={styles.helperText}>
+              입력한 정보는 판매자 1:1 문의에 자동으로 전달됩니다.
+            </ThemedText>
+            <TextInput
+              value={recipientName}
+              onChangeText={setRecipientName}
+              placeholder="수령인"
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <TextInput
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              placeholder="연락처"
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <TextInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="주소"
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <TextInput
+              value={addressDetail}
+              onChangeText={setAddressDetail}
+              placeholder="상세주소"
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <TextInput
+              value={deliveryMemo}
+              onChangeText={setDeliveryMemo}
+              placeholder="배송 요청사항"
+              placeholderTextColor={palette.subtle}
+              style={[styles.input, styles.shippingMemoInput]}
+              multiline
+            />
+            <Pressable
+              style={[
+                styles.primaryButton,
+                isSubmittingShipping && styles.disabledButton,
+              ]}
+              onPress={handleSubmitShipping}
+              disabled={isSubmittingShipping}
+            >
+              <ThemedText style={styles.primaryButtonText}>
+                {isSubmittingShipping ? '전송 중...' : '판매자에게 전달'}
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.trustPanel}>
           <ThemedText style={styles.panelTitle}>거래 체크포인트</ThemedText>
@@ -948,6 +1045,23 @@ const styles = StyleSheet.create({
     color: palette.brandDark,
     fontSize: 14,
     fontWeight: '900',
+  },
+  shippingPanel: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
+  shippingHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+  shippingMemoInput: {
+    minHeight: 82,
+    textAlignVertical: 'top',
   },
   trustPanel: {
     backgroundColor: palette.surface,

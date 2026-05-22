@@ -15,10 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   AUCTION_CATEGORIES,
   AuctionCategoryKey,
-  CONDITION_OPTIONS,
   EDITION_OPTIONS,
-  GRADE_OPTIONS,
+  GRADE_SCORES,
+  GRADING_COMPANIES,
   LANGUAGE_OPTIONS,
+  PRODUCT_TYPE_OPTIONS,
+  RAW_CONDITION_OPTIONS,
   formatPrice,
 } from '@/constants/auction';
 import { palette, shadow, typography } from '@/constants/ui';
@@ -56,10 +58,14 @@ export default function SellScreen() {
   const [cardRarity, setCardRarity] = useState('');
   const [cardEdition, setCardEdition] =
     useState<(typeof EDITION_OPTIONS)[number]>('일반판');
-  const [cardGrade, setCardGrade] =
-    useState<(typeof GRADE_OPTIONS)[number]>('미감정');
-  const [cardCondition, setCardCondition] =
-    useState<(typeof CONDITION_OPTIONS)[number]>('최상');
+  const [productType, setProductType] =
+    useState<(typeof PRODUCT_TYPE_OPTIONS)[number]>('단일 카드');
+  const [gradingCompany, setGradingCompany] =
+    useState<(typeof GRADING_COMPANIES)[number]>('미감정');
+  const [gradeScore, setGradeScore] =
+    useState<(typeof GRADE_SCORES)[number]>('10');
+  const [rawCondition, setRawCondition] =
+    useState<(typeof RAW_CONDITION_OPTIONS)[number]>('최상');
   const [cardLanguage, setCardLanguage] =
     useState<(typeof LANGUAGE_OPTIONS)[number]>('한국어');
   const [cardCategory, setCardCategory] =
@@ -83,8 +89,10 @@ export default function SellScreen() {
     setCardDescription('');
     setCardRarity('');
     setCardEdition('일반판');
-    setCardGrade('미감정');
-    setCardCondition('최상');
+    setProductType('단일 카드');
+    setGradingCompany('미감정');
+    setGradeScore('10');
+    setRawCondition('최상');
     setCardLanguage('한국어');
     setCardCategory('POKEMON');
     setImageUrl('');
@@ -94,12 +102,36 @@ export default function SellScreen() {
     setDurationHours('24');
   };
 
+  const gradeText = useMemo(() => {
+    if (productType !== '감정 카드') {
+      return '미감정';
+    }
+
+    if (gradingCompany === '미감정') {
+      return '미감정';
+    }
+
+    return `${gradingCompany} ${gradeScore}`;
+  }, [gradeScore, gradingCompany, productType]);
+
+  const conditionText = useMemo(() => {
+    if (productType === '팩/박스') {
+      return '미개봉';
+    }
+
+    if (productType === '감정 카드') {
+      return gradeText;
+    }
+
+    return rawCondition;
+  }, [gradeText, productType, rawCondition]);
+
   const cardAttributeText = useMemo(
     () =>
-      [cardEdition, cardGrade, cardRarity.trim()]
+      [productType, cardEdition, conditionText, cardRarity.trim()]
         .filter((value) => value && value !== '일반판')
         .join(' · '),
-    [cardEdition, cardGrade, cardRarity],
+    [cardEdition, cardRarity, conditionText, productType],
   );
 
   const pickImageFromLibrary = useCallback(async () => {
@@ -165,9 +197,11 @@ export default function SellScreen() {
     }
 
     const descriptionLines = [
+      `상품형태: ${productType}`,
       `판본: ${cardEdition}`,
-      `등급: ${cardGrade}`,
-      `상태: ${cardCondition}`,
+      productType === '감정 카드' ? `감정: ${gradeText}` : null,
+      productType === '팩/박스' ? '실링: 미개봉' : null,
+      productType === '단일 카드' ? `보존상태: ${rawCondition}` : null,
       `언어: ${cardLanguage}`,
       cardDescription.trim(),
     ].filter(Boolean);
@@ -175,7 +209,7 @@ export default function SellScreen() {
     const request: CreateAuctionRequest = {
       cardName: cardName.trim(),
       cardDescription: descriptionLines.join('\n'),
-      cardRarity: cardAttributeText || cardGrade,
+      cardRarity: cardAttributeText || conditionText,
       cardCategory,
       imageUrl: imageUrl.trim(),
       startingPrice: starting,
@@ -203,16 +237,18 @@ export default function SellScreen() {
   }, [
     buyNowPrice,
     cardCategory,
-    cardCondition,
     cardDescription,
     cardEdition,
-    cardGrade,
     cardLanguage,
     cardName,
     cardAttributeText,
+    conditionText,
     durationHours,
+    gradeText,
     imageUrl,
     minimumIncrement,
+    productType,
+    rawCondition,
     startingPrice,
   ]);
 
@@ -285,7 +321,7 @@ export default function SellScreen() {
               {cardName || '카드 이름을 입력하세요'}
             </ThemedText>
             <ThemedText style={styles.previewMeta}>
-              {cardAttributeText || cardGrade} · {cardCondition} · {cardLanguage}
+              {cardAttributeText || conditionText} · {cardLanguage}
             </ThemedText>
             <View style={styles.previewPriceRow}>
               <View>
@@ -325,7 +361,11 @@ export default function SellScreen() {
             <ThemedText style={styles.sectionTitle}>카테고리</ThemedText>
             <ThemedText style={styles.sectionMeta}>카드 종류 기준</ThemedText>
           </View>
-          <View style={styles.categoryGrid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRail}
+          >
             {selectableCategories.map((category) => {
               const active = cardCategory === category.key;
               return (
@@ -366,7 +406,7 @@ export default function SellScreen() {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
         <View style={styles.section}>
@@ -415,21 +455,21 @@ export default function SellScreen() {
           </View>
 
           <View style={styles.optionBlock}>
-            <ThemedText style={styles.optionLabel}>등급</ThemedText>
+            <ThemedText style={styles.optionLabel}>상품 형태</ThemedText>
             <View style={styles.chipRow}>
-              {GRADE_OPTIONS.map((option) => (
+              {PRODUCT_TYPE_OPTIONS.map((option) => (
                 <Pressable
                   key={option}
                   style={[
                     styles.optionChip,
-                    cardGrade === option && styles.optionChipActive,
+                    productType === option && styles.optionChipActive,
                   ]}
-                  onPress={() => setCardGrade(option)}
+                  onPress={() => setProductType(option)}
                 >
                   <ThemedText
                     style={[
                       styles.optionChipText,
-                      cardGrade === option && styles.optionChipTextActive,
+                      productType === option && styles.optionChipTextActive,
                     ]}
                   >
                     {option}
@@ -439,30 +479,103 @@ export default function SellScreen() {
             </View>
           </View>
 
-          <View style={styles.optionBlock}>
-            <ThemedText style={styles.optionLabel}>상태</ThemedText>
-            <View style={styles.chipRow}>
-              {CONDITION_OPTIONS.map((option) => (
-                <Pressable
-                  key={option}
-                  style={[
-                    styles.optionChip,
-                    cardCondition === option && styles.optionChipActive,
-                  ]}
-                  onPress={() => setCardCondition(option)}
-                >
-                  <ThemedText
+          {productType === '감정 카드' ? (
+            <View style={styles.optionBlock}>
+              <ThemedText style={styles.optionLabel}>감정사</ThemedText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalChips}
+              >
+                {GRADING_COMPANIES.map((option) => (
+                  <Pressable
+                    key={option}
                     style={[
-                      styles.optionChipText,
-                      cardCondition === option && styles.optionChipTextActive,
+                      styles.optionChip,
+                      gradingCompany === option && styles.optionChipActive,
                     ]}
+                    onPress={() => setGradingCompany(option)}
                   >
-                    {option}
-                  </ThemedText>
-                </Pressable>
-              ))}
+                    <ThemedText
+                      style={[
+                        styles.optionChipText,
+                        gradingCompany === option && styles.optionChipTextActive,
+                      ]}
+                    >
+                      {option}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {gradingCompany !== '미감정' ? (
+                <>
+                  <ThemedText style={styles.optionLabel}>점수</ThemedText>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalChips}
+                  >
+                    {GRADE_SCORES.map((option) => (
+                      <Pressable
+                        key={option}
+                        style={[
+                          styles.optionChip,
+                          gradeScore === option && styles.optionChipActive,
+                        ]}
+                        onPress={() => setGradeScore(option)}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.optionChipText,
+                            gradeScore === option && styles.optionChipTextActive,
+                          ]}
+                        >
+                          {option}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </>
+              ) : null}
             </View>
-          </View>
+          ) : null}
+
+          {productType === '단일 카드' ? (
+            <View style={styles.optionBlock}>
+              <ThemedText style={styles.optionLabel}>보존상태</ThemedText>
+              <View style={styles.chipRow}>
+                {RAW_CONDITION_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.optionChip,
+                      rawCondition === option && styles.optionChipActive,
+                    ]}
+                    onPress={() => setRawCondition(option)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.optionChipText,
+                        rawCondition === option && styles.optionChipTextActive,
+                      ]}
+                    >
+                      {option}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {productType === '팩/박스' ? (
+            <View style={styles.sealedNotice}>
+              <Ionicons name="cube-outline" size={17} color={palette.success} />
+              <ThemedText style={styles.sealedNoticeText}>
+                팩/박스 상품은 미개봉 실링 상태로만 등록합니다.
+              </ThemedText>
+            </View>
+          ) : null}
 
           <View style={styles.optionBlock}>
             <ThemedText style={styles.optionLabel}>언어</ThemedText>
@@ -811,10 +924,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  categoryRail: {
     gap: 10,
+    paddingBottom: 4,
   },
   categoryOption: {
     alignItems: 'center',
@@ -824,8 +936,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
+    minWidth: 164,
     padding: 12,
-    width: '48%',
   },
   categoryOptionCopy: {
     flex: 1,
@@ -884,6 +996,10 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
+  horizontalChips: {
+    gap: 8,
+    paddingBottom: 10,
+  },
   optionChip: {
     backgroundColor: '#FFFFFF',
     borderColor: palette.line,
@@ -903,6 +1019,24 @@ const styles = StyleSheet.create({
   },
   optionChipTextActive: {
     color: '#FFFFFF',
+  },
+  sealedNotice: {
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#CCFBF1',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+    padding: 12,
+  },
+  sealedNoticeText: {
+    color: palette.success,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   durationRow: {
     flexDirection: 'row',

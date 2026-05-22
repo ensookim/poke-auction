@@ -3,9 +3,14 @@ package com.pokeauction.auction.api.auction.service;
 import com.pokeauction.auction.api.auction.domain.Auction;
 import com.pokeauction.auction.api.auction.dto.AuctionResponse;
 import com.pokeauction.auction.api.auction.dto.CreateAuctionRequest;
+import com.pokeauction.auction.api.auction.dto.ShippingInfoRequest;
 import com.pokeauction.auction.api.auction.repository.AuctionRepository;
 import com.pokeauction.auction.api.bid.domain.Bid;
 import com.pokeauction.auction.api.bid.repository.BidRepository;
+import com.pokeauction.auction.api.chat.domain.ChatMessage;
+import com.pokeauction.auction.api.chat.domain.ChatRoom;
+import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
+import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +30,8 @@ public class AuctionService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
 
     @Transactional(readOnly = true)
     public List<AuctionResponse> listAuctions(String category, String sort, boolean activeOnly) {
@@ -156,6 +163,57 @@ public class AuctionService {
     public AuctionResponse getAuctionDetails(Long auctionId) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
+        return AuctionResponse.from(auction);
+    }
+
+    @Transactional
+    public AuctionResponse submitShippingInfo(Long auctionId, Long buyerId, ShippingInfoRequest request) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
+
+        if (auction.getWinnerId() == null || !auction.getWinnerId().equals(buyerId)) {
+            throw new IllegalStateException("낙찰자만 배송 정보를 입력할 수 있습니다.");
+        }
+
+        if (auction.getCreatedBy() == null) {
+            throw new IllegalStateException("판매자 정보가 없는 경매입니다.");
+        }
+
+        User buyer = userRepository.findById(buyerId)
+                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+
+        ChatRoom room = chatRoomRepository.findByAuctionIdAndBuyerId(auctionId, buyerId)
+                .orElseGet(() -> chatRoomRepository.save(ChatRoom.builder()
+                        .auction(auction)
+                        .seller(auction.getCreatedBy())
+                        .buyer(buyer)
+                        .build()));
+
+        String content = """
+                [배송정보]
+                수령인: %s
+                연락처: %s
+                주소: %s %s
+                요청사항: %s
+                """.formatted(
+                request.getRecipientName().trim(),
+                request.getPhoneNumber().trim(),
+                request.getAddress().trim(),
+                request.getAddressDetail() == null ? "" : request.getAddressDetail().trim(),
+                request.getDeliveryMemo() == null || request.getDeliveryMemo().isBlank()
+                        ? "없음"
+                        : request.getDeliveryMemo().trim()
+        ).trim();
+
+        ChatMessage message = chatMessageRepository.save(ChatMessage.builder()
+                .room(room)
+                .sender(buyer)
+                .content(content)
+                .build());
+
+        room.updateLastMessage(message.getContent());
+        chatRoomRepository.save(room);
+
         return AuctionResponse.from(auction);
     }
 

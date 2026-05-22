@@ -17,7 +17,7 @@ import {
   AuctionCategoryKey,
   AuctionSortKey,
   EDITION_OPTIONS,
-  GRADE_OPTIONS,
+  GRADING_COMPANIES,
   SORT_OPTIONS,
   formatPrice,
   formatRemainingTime,
@@ -42,7 +42,7 @@ export default function BuyScreen() {
   const [selectedEdition, setSelectedEdition] =
     useState<'ALL' | (typeof EDITION_OPTIONS)[number]>('ALL');
   const [selectedGrade, setSelectedGrade] =
-    useState<'ALL' | (typeof GRADE_OPTIONS)[number]>('ALL');
+    useState<'ALL' | (typeof GRADING_COMPANIES)[number]>('ALL');
   const [buyNowOnly, setBuyNowOnly] = useState(false);
   const [endingTodayOnly, setEndingTodayOnly] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
@@ -290,13 +290,13 @@ export default function BuyScreen() {
             })}
           </ScrollView>
 
-          <ThemedText style={styles.attributeLabel}>등급</ThemedText>
+          <ThemedText style={styles.attributeLabel}>감정사</ThemedText>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.attributeRail}
           >
-            {(['ALL', ...GRADE_OPTIONS] as const).map((option) => {
+            {(['ALL', ...GRADING_COMPANIES] as const).map((option) => {
               const active = selectedGrade === option;
               return (
                 <Pressable

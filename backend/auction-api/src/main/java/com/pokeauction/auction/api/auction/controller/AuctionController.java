@@ -2,6 +2,7 @@ package com.pokeauction.auction.api.auction.controller;
 
 import com.pokeauction.auction.api.auction.dto.AuctionResponse;
 import com.pokeauction.auction.api.auction.dto.CreateAuctionRequest;
+import com.pokeauction.auction.api.auction.dto.ShippingInfoRequest;
 import com.pokeauction.auction.api.auction.service.AuctionService;
 import com.pokeauction.auction.api.auth.service.JwtProvider;
 import com.pokeauction.auction.api.bid.dto.PlaceBidRequest;
@@ -81,6 +82,20 @@ public class AuctionController {
     @GetMapping("/{id}")
     public AuctionResponse getAuction(@PathVariable Long id) {
         return auctionService.getAuctionDetails(id);
+    }
+
+    @PostMapping("/{id}/shipping-info")
+    public AuctionResponse submitShippingInfo(
+            @PathVariable Long id,
+            @RequestBody @Valid ShippingInfoRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        try {
+            return auctionService.submitShippingInfo(id, userId, request);
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/my-bids")

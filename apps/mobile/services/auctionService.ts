@@ -102,6 +102,14 @@ export interface CreateAuctionRequest {
   durationHours: number;
 }
 
+export interface ShippingInfoRequest {
+  recipientName: string;
+  phoneNumber: string;
+  address: string;
+  addressDetail?: string;
+  deliveryMemo?: string;
+}
+
 class AuctionService {
   private client: AxiosInstance;
 
@@ -174,6 +182,17 @@ class AuctionService {
   async createAuction(request: CreateAuctionRequest): Promise<AuctionResponse> {
     const response = await this.client.post<AuctionResponse>(
       '/api/auctions',
+      request,
+    );
+    return response.data;
+  }
+
+  async submitShippingInfo(
+    auctionId: number,
+    request: ShippingInfoRequest,
+  ): Promise<AuctionResponse> {
+    const response = await this.client.post<AuctionResponse>(
+      `/api/auctions/${auctionId}/shipping-info`,
       request,
     );
     return response.data;
