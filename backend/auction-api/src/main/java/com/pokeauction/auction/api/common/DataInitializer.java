@@ -31,7 +31,7 @@ public class DataInitializer implements ApplicationRunner {
                         "https://picsum.photos/seed/cardbid-rookie/400/560",
                         12000L,
                         1000L,
-                        null,
+                        25000L,
                         48
                 ),
                 null
@@ -46,7 +46,7 @@ public class DataInitializer implements ApplicationRunner {
                         "https://picsum.photos/seed/cardbid-sealed/400/560",
                         38000L,
                         2000L,
-                        null,
+                        58000L,
                         36
                 ),
                 null
@@ -61,7 +61,7 @@ public class DataInitializer implements ApplicationRunner {
                         "https://picsum.photos/seed/cardbid-graded/400/560",
                         95000L,
                         5000L,
-                        null,
+                        145000L,
                         72
                 ),
                 null

@@ -26,6 +26,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 import chatService from '@/services/chatService';
+import commerceService, {
+  CollectionStatusResponse,
+} from '@/services/commerceService';
 
 export default function AuctionDetail() {
   const { isSignedIn, user } = useAuth();
@@ -37,6 +40,9 @@ export default function AuctionDetail() {
   const [bidAmount, setBidAmount] = useState('');
   const [isBidding, setIsBidding] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [collectionStatus, setCollectionStatus] =
+    useState<CollectionStatusResponse | null>(null);
+  const [isSavingCollection, setIsSavingCollection] = useState(false);
 
   const loadAuction = useCallback(async () => {
     if (!id) {
@@ -60,6 +66,16 @@ export default function AuctionDetail() {
   useEffect(() => {
     loadAuction();
   }, [loadAuction]);
+
+  useEffect(() => {
+    if (!isSignedIn || !id) {
+      return;
+    }
+
+    commerceService.getStatus(id).then(setCollectionStatus).catch(() => {
+      setCollectionStatus(null);
+    });
+  }, [id, isSignedIn]);
 
   const nextBidAmount = useMemo(() => {
     if (!auction) {
@@ -186,6 +202,61 @@ export default function AuctionDetail() {
     }
   };
 
+  const handleToggleWishlist = async () => {
+    if (requireLogin('찜하려면 카카오 로그인이 필요합니다.')) {
+      return;
+    }
+
+    if (!auction) {
+      return;
+    }
+
+    try {
+      setIsSavingCollection(true);
+      const updated = collectionStatus?.wished
+        ? await commerceService.removeWishlist(auction.id)
+        : await commerceService.addWishlist(auction.id);
+      setCollectionStatus(updated);
+    } catch (error) {
+      Alert.alert(
+        '찜 처리 실패',
+        error instanceof Error ? error.message : '찜 상태를 변경하지 못했습니다.',
+      );
+    } finally {
+      setIsSavingCollection(false);
+    }
+  };
+
+  const handleToggleCart = async () => {
+    if (requireLogin('장바구니에 담으려면 카카오 로그인이 필요합니다.')) {
+      return;
+    }
+
+    if (!auction) {
+      return;
+    }
+
+    try {
+      setIsSavingCollection(true);
+      const updated = collectionStatus?.inCart
+        ? await commerceService.removeCart(auction.id)
+        : await commerceService.addCart(auction.id);
+      setCollectionStatus(updated);
+      if (!collectionStatus?.inCart) {
+        Alert.alert('장바구니 담기 완료', 'MY에서 장바구니 상품을 한번에 결제할 수 있어요.');
+      }
+    } catch (error) {
+      Alert.alert(
+        '장바구니 처리 실패',
+        error instanceof Error
+          ? error.message
+          : '장바구니 상태를 변경하지 못했습니다.',
+      );
+    } finally {
+      setIsSavingCollection(false);
+    }
+  };
+
   const handleShare = async () => {
     if (!auction) {
       return;
@@ -300,6 +371,54 @@ export default function AuctionDetail() {
               </Pressable>
             ) : null}
           </View>
+        </View>
+
+        <View style={styles.collectionPanel}>
+          <Pressable
+            style={[
+              styles.collectionButton,
+              collectionStatus?.wished && styles.collectionButtonActive,
+            ]}
+            onPress={handleToggleWishlist}
+            disabled={isSavingCollection}
+          >
+            <Ionicons
+              name={collectionStatus?.wished ? 'heart' : 'heart-outline'}
+              size={18}
+              color={collectionStatus?.wished ? '#FFFFFF' : palette.brand}
+            />
+            <ThemedText
+              style={[
+                styles.collectionButtonText,
+                collectionStatus?.wished && styles.collectionButtonTextActive,
+              ]}
+            >
+              {collectionStatus?.wished ? '찜 완료' : '찜하기'}
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.collectionButton,
+              collectionStatus?.inCart && styles.collectionButtonActive,
+              !auction.buyNowPrice && styles.collectionButtonDisabled,
+            ]}
+            onPress={handleToggleCart}
+            disabled={isSavingCollection || !auction.buyNowPrice}
+          >
+            <Ionicons
+              name={collectionStatus?.inCart ? 'bag-check' : 'bag-add-outline'}
+              size={18}
+              color={collectionStatus?.inCart ? '#FFFFFF' : palette.brand}
+            />
+            <ThemedText
+              style={[
+                styles.collectionButtonText,
+                collectionStatus?.inCart && styles.collectionButtonTextActive,
+              ]}
+            >
+              {collectionStatus?.inCart ? '담김' : '장바구니'}
+            </ThemedText>
+          </Pressable>
         </View>
 
         <View style={styles.priceBoard}>
@@ -620,6 +739,38 @@ const styles = StyleSheet.create({
     color: palette.ink,
     fontSize: 12,
     fontWeight: '900',
+  },
+  collectionPanel: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  collectionButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    paddingVertical: 13,
+  },
+  collectionButtonActive: {
+    backgroundColor: palette.brand,
+    borderColor: palette.brand,
+  },
+  collectionButtonDisabled: {
+    opacity: 0.45,
+  },
+  collectionButtonText: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  collectionButtonTextActive: {
+    color: '#FFFFFF',
   },
   priceBoard: {
     backgroundColor: palette.night,

@@ -21,11 +21,16 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import commerceService, {
+  CollectionItemResponse,
+} from '@/services/commerceService';
 
-type MyTab = 'bids' | 'listings' | 'profile';
+type MyTab = 'bids' | 'wishlist' | 'cart' | 'listings' | 'profile';
 
 const tabs: { key: MyTab; label: string }[] = [
   { key: 'bids', label: '입찰' },
+  { key: 'wishlist', label: '찜' },
+  { key: 'cart', label: '장바구니' },
   { key: 'listings', label: '판매글' },
   { key: 'profile', label: '내 정보' },
 ];
@@ -35,17 +40,24 @@ export default function MyScreen() {
   const [activeTab, setActiveTab] = useState<MyTab>('bids');
   const [bids, setBids] = useState<AuctionResponse[]>([]);
   const [listings, setListings] = useState<AuctionResponse[]>([]);
+  const [wishlist, setWishlist] = useState<CollectionItemResponse[]>([]);
+  const [cart, setCart] = useState<CollectionItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const loadMyPage = useCallback(async () => {
     setLoading(true);
     try {
-      const [bidData, listingData] = await Promise.all([
+      const [bidData, listingData, wishlistData, cartData] = await Promise.all([
         auctionService.getAuctionsByBidder(),
         auctionService.getMyListings(),
+        commerceService.getWishlist(),
+        commerceService.getCart(),
       ]);
       setBids(bidData);
       setListings(listingData);
+      setWishlist(wishlistData);
+      setCart(cartData);
     } catch (error) {
       Alert.alert(
         'MY 조회 오류',
@@ -67,13 +79,37 @@ export default function MyScreen() {
       activeBids: bids.filter((auction) => auction.active).length,
       won: bids.filter((auction) => auction.winnerId === user?.id).length,
       activeListings: listings.filter((auction) => auction.active).length,
+      cartTotal: cart.reduce(
+        (sum, item) => sum + (item.auction.buyNowPrice ?? 0),
+        0,
+      ),
     }),
-    [bids, listings, user?.id],
+    [bids, cart, listings, user?.id],
   );
 
   const handleLogout = async () => {
     await logout();
     router.replace('/login');
+  };
+
+  const handleCheckout = async () => {
+    try {
+      setIsCheckingOut(true);
+      const checkout = await commerceService.checkoutCart();
+      Alert.alert(
+        '결제 준비 완료',
+        `${checkout.itemCount}개 상품, 총 ${formatPrice(
+          checkout.totalAmount,
+        )} 결제를 진행할 수 있습니다.\n\n실제 PG 결제 연동 전 단계입니다.`,
+      );
+    } catch (error) {
+      Alert.alert(
+        '결제 준비 실패',
+        error instanceof Error ? error.message : '장바구니를 확인하지 못했습니다.',
+      );
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   if (isLoading || loading) {
@@ -169,6 +205,47 @@ export default function MyScreen() {
             emptyAction="경매 등록하기"
             onEmptyPress={() => router.push('/sell')}
           />
+        ) : null}
+
+        {activeTab === 'wishlist' ? (
+          <AuctionList
+            auctions={wishlist.map((item) => item.auction)}
+            emptyTitle="아직 찜한 상품이 없어요"
+            emptyAction="상품 둘러보기"
+            onEmptyPress={() => router.push('/buy')}
+          />
+        ) : null}
+
+        {activeTab === 'cart' ? (
+          <View>
+            <View style={styles.cartSummary}>
+              <View>
+                <ThemedText style={styles.cartSummaryLabel}>결제 예정 금액</ThemedText>
+                <ThemedText style={styles.cartSummaryValue}>
+                  {formatPrice(stats.cartTotal)}
+                </ThemedText>
+              </View>
+              <Pressable
+                style={[
+                  styles.checkoutButton,
+                  (cart.length === 0 || isCheckingOut) && styles.checkoutButtonDisabled,
+                ]}
+                onPress={handleCheckout}
+                disabled={cart.length === 0 || isCheckingOut}
+              >
+                <Ionicons name="card" size={17} color="#FFFFFF" />
+                <ThemedText style={styles.checkoutText}>
+                  {isCheckingOut ? '확인 중' : '결제하기'}
+                </ThemedText>
+              </Pressable>
+            </View>
+            <AuctionList
+              auctions={cart.map((item) => item.auction)}
+              emptyTitle="장바구니가 비어 있어요"
+              emptyAction="즉시 낙찰 상품 보기"
+              onEmptyPress={() => router.push('/buy')}
+            />
+          </View>
         ) : null}
 
         {activeTab === 'profile' ? (
@@ -396,6 +473,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDEFF3',
     borderRadius: 8,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 4,
     marginBottom: 14,
     padding: 4,
@@ -403,7 +481,8 @@ const styles = StyleSheet.create({
   tabChip: {
     alignItems: 'center',
     borderRadius: 6,
-    flex: 1,
+    minWidth: '31%',
+    flexGrow: 1,
     paddingVertical: 10,
   },
   tabChipActive: {
@@ -419,6 +498,44 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 12,
+  },
+  cartSummary: {
+    alignItems: 'center',
+    backgroundColor: palette.night,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    padding: 15,
+    ...shadow,
+  },
+  cartSummaryLabel: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  cartSummaryValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  checkoutButton: {
+    alignItems: 'center',
+    backgroundColor: palette.brand,
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  checkoutButtonDisabled: {
+    opacity: 0.55,
+  },
+  checkoutText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
   },
   item: {
     backgroundColor: '#FFFFFF',
