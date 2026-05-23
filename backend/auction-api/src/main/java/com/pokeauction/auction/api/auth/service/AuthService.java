@@ -5,6 +5,7 @@ import com.pokeauction.auction.api.auth.dto.KakaoLoginRequest;
 import com.pokeauction.auction.api.auth.dto.KakaoTokenResponse;
 import com.pokeauction.auction.api.auth.dto.KakaoUserResponse;
 import com.pokeauction.auction.api.auth.dto.LoginResponse;
+import com.pokeauction.auction.api.auth.dto.RefreshTokenRequest;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +69,30 @@ public class AuthService {
                 .userId(user.getId())
                 .nickname(user.getNickname())
                 .isNewUser(isNewUser)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse refresh(RefreshTokenRequest request) {
+        if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
+            throw new IllegalArgumentException("refreshToken이 필요합니다.");
+        }
+
+        String refreshToken = request.getRefreshToken();
+        if (!jwtProvider.validateToken(refreshToken)) {
+            throw new IllegalArgumentException("유효하지 않은 refreshToken입니다.");
+        }
+
+        Long userId = jwtProvider.parseUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
+
+        return LoginResponse.builder()
+                .accessToken(jwtProvider.createAccessToken(user.getId()))
+                .refreshToken(jwtProvider.createRefreshToken(user.getId()))
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .isNewUser(false)
                 .build();
     }
 }

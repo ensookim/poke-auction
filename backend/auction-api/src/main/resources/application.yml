@@ -19,6 +19,9 @@ spring:
 server:
   port: 8080
 
+app:
+  mobile-redirect-url: ${APP_MOBILE_REDIRECT_URL:exp://localhost:8081/--/login-success}
+
 kakao:
   client-id: ${KAKAO_REST_API_KEY}
   client-secret: ${KAKAO_CLIENT_SECRET}
