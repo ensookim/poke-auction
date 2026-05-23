@@ -25,12 +25,10 @@ export default function LoginScreen() {
     try {
       setIsAuthLoading(true);
 
-      const loginUrl = authService.getKakaoLoginUrl();
-
-      // Expo Go에서 앱으로 다시 돌아올 주소
       const appRedirectUri = makeRedirectUri({
         path: 'login-success',
       });
+      const loginUrl = authService.getKakaoLoginUrl(appRedirectUri);
 
       console.log('🟢 카카오 로그인 URL:', loginUrl);
       console.log('🟢 앱 리다이렉트 URI:', appRedirectUri);

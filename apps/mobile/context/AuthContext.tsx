@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import authService, { LoginResponse } from '../services/authService';
 
 interface AuthContextType {
@@ -30,19 +31,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      const token = await authService.getAccessToken();
-      if (token) {
+      const hasValidToken = await authService.hasValidAccessToken();
+      if (hasValidToken) {
         const storedUser = await authService.getStoredUser();
         if (storedUser) {
           setUser(storedUser);
         }
         setIsSignedIn(true);
       } else {
-        setUser(null);
-        setIsSignedIn(false);
+        const refreshed = await authService.refreshSession();
+        if (refreshed) {
+          setUser({
+            id: refreshed.userId,
+            nickname: refreshed.nickname,
+          });
+          setIsSignedIn(true);
+        } else {
+          await authService.clearTokens();
+          setUser(null);
+          setIsSignedIn(false);
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      await authService.clearTokens();
       setUser(null);
       setIsSignedIn(false);
     } finally {
@@ -53,6 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 앱 시작 시 토큰 확인
   useEffect(() => {
     checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        checkAuth();
+      }
+    });
+
+    return () => subscription.remove();
   }, [checkAuth]);
 
   const login = useCallback(async (code: string) => {

@@ -1,52 +1,14 @@
 import axios, { AxiosHeaders, AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
-import { makeRedirectUri } from 'expo-auth-session';
+import { BACKEND_URL } from '@/services/apiConfig';
 
-const RAW_BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8080';
 const KAKAO_APP_ID = process.env.EXPO_PUBLIC_KAKAO_APP_ID;
 const KAKAO_WEB_REDIRECT_URI = process.env.EXPO_PUBLIC_KAKAO_WEB_REDIRECT_URI;
 
 const KAKAO_NATIVE_REDIRECT_URI =
   process.env.EXPO_PUBLIC_KAKAO_NATIVE_REDIRECT_URI;
 const isWeb = Platform.OS === 'web';
-
-const getBackendHostFromConstants = (): string | null => {
-  const hostString =
-    Constants.manifest?.debuggerHost ||
-    (Constants.expoConfig?.hostUri as string | undefined);
-
-  if (!hostString) {
-    return null;
-  }
-
-  return hostString.split(':')[0];
-};
-
-const BACKEND_URL = (() => {
-  if (isWeb) {
-    console.log('🔗 Web mode - BACKEND_URL:', RAW_BACKEND_URL);
-    return RAW_BACKEND_URL;
-  }
-
-  const isLocalhost = RAW_BACKEND_URL.includes('localhost');
-  if (!isLocalhost) {
-    console.log(
-      '🔗 Native mode (non-localhost) - BACKEND_URL:',
-      RAW_BACKEND_URL,
-    );
-    return RAW_BACKEND_URL;
-  }
-
-  const backendHost = getBackendHostFromConstants();
-  const finalUrl = backendHost ? `http://${backendHost}:8080` : RAW_BACKEND_URL;
-  console.log('🔗 Native mode (localhost conversion):');
-  console.log('   debuggerHost:', backendHost);
-  console.log('   BACKEND_URL:', finalUrl);
-  return finalUrl;
-})();
 
 export const tokenStorage = {
   async getItem(key: string): Promise<string | null> {
@@ -82,7 +44,7 @@ const getKakaoRedirectUri = (): string => {
 
   return (
     KAKAO_NATIVE_REDIRECT_URI ||
-    'http://192.168.15.112:8080/api/auth/kakao/callback'
+    `${BACKEND_URL}/api/auth/kakao/callback`
   );
 };
 export interface LoginResponse {
@@ -97,6 +59,27 @@ export interface KakaoLoginRequest {
   code: string;
   redirectUri: string;
 }
+
+const isJwtExpired = (token: string): boolean => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) {
+      return true;
+    }
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+    const decoded = atob(paddedPayload);
+    const data = JSON.parse(decoded) as { exp?: number };
+
+    return typeof data.exp !== 'number' || data.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+};
 
 class AuthService {
   private client: AxiosInstance;
@@ -147,12 +130,16 @@ class AuthService {
   /**
    * 카카오 로그인 URL 생성
    */
-  getKakaoLoginUrl(): string {
+  getKakaoLoginUrl(appRedirectUri?: string): string {
     const params = new URLSearchParams({
       client_id: KAKAO_APP_ID || '',
       redirect_uri: getKakaoRedirectUri(),
       response_type: 'code',
     });
+
+    if (appRedirectUri) {
+      params.set('state', appRedirectUri);
+    }
 
     return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
   }
@@ -162,6 +149,31 @@ class AuthService {
    */
   async getAccessToken(): Promise<string | null> {
     return tokenStorage.getItem('accessToken');
+  }
+
+  async hasValidAccessToken(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return Boolean(token && !isJwtExpired(token));
+  }
+
+  async refreshSession(): Promise<LoginResponse | null> {
+    const refreshToken = await tokenStorage.getItem('refreshToken');
+    if (!refreshToken || isJwtExpired(refreshToken)) {
+      return null;
+    }
+
+    const response = await axios.post<LoginResponse>(
+      `${BACKEND_URL}/api/auth/refresh`,
+      { refreshToken },
+    );
+
+    await this.saveTokens(response.data.accessToken, response.data.refreshToken);
+    await this.saveUser({
+      id: response.data.userId,
+      nickname: response.data.nickname,
+    });
+
+    return response.data;
   }
 
   /**
