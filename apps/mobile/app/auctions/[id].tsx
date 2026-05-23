@@ -26,13 +26,14 @@ import { useAuth } from '@/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import { isAuthSessionExpiredError } from '@/services/apiClient';
 import chatService from '@/services/chatService';
 import commerceService, {
   CollectionStatusResponse,
 } from '@/services/commerceService';
 
 export default function AuctionDetail() {
-  const { isSignedIn, user } = useAuth();
+  const { isSignedIn, user, logout } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -140,6 +141,17 @@ export default function AuctionDetail() {
     return true;
   };
 
+  const handleSessionExpired = async (error: unknown) => {
+    if (!isAuthSessionExpiredError(error)) {
+      return false;
+    }
+
+    await logout();
+    Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+    router.replace('/login');
+    return true;
+  };
+
   const handleBid = async () => {
     if (requireLogin('입찰하려면 카카오 로그인이 필요합니다.')) {
       return;
@@ -165,6 +177,9 @@ export default function AuctionDetail() {
       setBidAmount('');
       Alert.alert('입찰 완료', '입찰이 정상적으로 반영되었습니다.');
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert('입찰 실패', getErrorMessage(error));
     } finally {
       setIsBidding(false);
@@ -186,6 +201,9 @@ export default function AuctionDetail() {
       setAuction(updated);
       Alert.alert('낙찰 완료', '즉시 낙찰되었습니다.');
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert('즉시 낙찰 실패', getErrorMessage(error));
     } finally {
       setIsBidding(false);
@@ -207,6 +225,9 @@ export default function AuctionDetail() {
       const room = await chatService.createRoom(auction.id);
       router.push(`/chats/${room.id}` as any);
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert(
         '문의 연결 실패',
         error instanceof Error ? error.message : '판매자와 연결하지 못했습니다.',
@@ -232,6 +253,9 @@ export default function AuctionDetail() {
         : await commerceService.addWishlist(auction.id);
       setCollectionStatus(updated);
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert(
         '찜 처리 실패',
         error instanceof Error ? error.message : '찜 상태를 변경하지 못했습니다.',
@@ -260,6 +284,9 @@ export default function AuctionDetail() {
         Alert.alert('장바구니 담기 완료', 'MY에서 장바구니 상품을 한번에 결제할 수 있어요.');
       }
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert(
         '장바구니 처리 실패',
         error instanceof Error
@@ -307,6 +334,9 @@ export default function AuctionDetail() {
       Alert.alert('배송정보 전송 완료', '판매자 1:1 문의에 배송정보가 전달되었습니다.');
       setDeliveryMemo('');
     } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
       Alert.alert('배송정보 전송 실패', getErrorMessage(error));
     } finally {
       setIsSubmittingShipping(false);

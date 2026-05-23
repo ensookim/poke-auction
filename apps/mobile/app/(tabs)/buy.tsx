@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -30,6 +31,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 import { palette, shadow, typography } from '@/constants/ui';
+import { getFriendlyErrorMessage } from '@/services/errorUtils';
 
 export default function BuyScreen() {
   const params = useLocalSearchParams<{ category?: AuctionCategoryKey; q?: string }>();
@@ -48,9 +50,12 @@ export default function BuyScreen() {
   const [buyNowOnly, setBuyNowOnly] = useState(false);
   const [endingTodayOnly, setEndingTodayOnly] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadAuctions = useCallback(async () => {
-    setIsFetching(true);
+  const loadAuctions = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsFetching(true);
+    }
     try {
       const data = await auctionService.getAuctions({
         category: selectedCategory,
@@ -61,12 +66,12 @@ export default function BuyScreen() {
     } catch (error) {
       Alert.alert(
         '경매 목록 오류',
-        error instanceof Error
-          ? error.message
-          : '경매 목록을 불러오지 못했습니다.',
+        getFriendlyErrorMessage(error, '경매 목록을 불러오지 못했습니다.'),
       );
     } finally {
-      setIsFetching(false);
+      if (!silent) {
+        setIsFetching(false);
+      }
     }
   }, [selectedCategory, sort]);
 
@@ -77,10 +82,19 @@ export default function BuyScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isSignedIn) {
-        loadAuctions();
+        loadAuctions(true);
       }
     }, [isSignedIn, loadAuctions]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAuctions(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadAuctions]);
 
   useEffect(() => {
     if (params.category) {
@@ -157,6 +171,9 @@ export default function BuyScreen() {
           styles.content,
           { paddingBottom: 36 + insets.bottom },
         ]}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >

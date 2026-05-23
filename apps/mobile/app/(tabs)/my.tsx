@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -22,6 +23,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import { isAuthSessionExpiredError } from '@/services/apiClient';
+import { getFriendlyErrorMessage } from '@/services/errorUtils';
 import commerceService, {
   CollectionItemResponse,
 } from '@/services/commerceService';
@@ -46,10 +49,13 @@ export default function MyScreen() {
   const [wishlist, setWishlist] = useState<CollectionItemResponse[]>([]);
   const [cart, setCart] = useState<CollectionItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const loadMyPage = useCallback(async () => {
-    setLoading(true);
+  const loadMyPage = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [bidData, listingData, wishlistData, cartData] = await Promise.all([
         auctionService.getAuctionsByBidder(),
@@ -62,12 +68,21 @@ export default function MyScreen() {
       setWishlist(wishlistData);
       setCart(cartData);
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        await logout();
+        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
       Alert.alert(
         'MY 조회 오류',
-        error instanceof Error ? error.message : '내 활동을 불러오지 못했습니다.',
+        getFriendlyErrorMessage(error, '내 활동을 불러오지 못했습니다.'),
       );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -80,10 +95,19 @@ export default function MyScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isSignedIn) {
-        loadMyPage();
+        loadMyPage(true);
       }
     }, [isSignedIn, loadMyPage]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadMyPage(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadMyPage]);
 
   const stats = useMemo(
     () => ({
@@ -156,6 +180,9 @@ export default function MyScreen() {
           styles.content,
           { paddingBottom: 40 + insets.bottom },
         ]}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
@@ -166,7 +193,7 @@ export default function MyScreen() {
               내 활동
             </ThemedText>
           </View>
-          <Pressable style={styles.refreshButton} onPress={loadMyPage}>
+          <Pressable style={styles.refreshButton} onPress={() => void loadMyPage(true)}>
             <Ionicons name="refresh" size={19} color={palette.ink} />
           </Pressable>
         </View>

@@ -31,6 +31,7 @@ import { useAuth } from '@/context/AuthContext';
 import auctionService, {
   CreateAuctionRequest,
 } from '@/services/auctionService';
+import { isAuthSessionExpiredError } from '@/services/apiClient';
 
 const selectableCategories = AUCTION_CATEGORIES.filter(
   (category) => category.key !== 'ALL',
@@ -53,7 +54,7 @@ const cardImagePickerOptions: ImagePicker.ImagePickerOptions = {
 };
 
 export default function SellScreen() {
-  const { isLoading, isSignedIn } = useAuth();
+  const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [cardName, setCardName] = useState('');
   const [cardDescription, setCardDescription] = useState('');
@@ -233,6 +234,13 @@ export default function SellScreen() {
       resetForm();
       router.push(`/auctions/${created.id}`);
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        await logout();
+        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
       Alert.alert(
         '등록 실패',
         error instanceof Error

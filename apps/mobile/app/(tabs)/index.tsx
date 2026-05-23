@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -25,6 +27,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import { BACKEND_URL } from '@/services/apiConfig';
+import { getFriendlyErrorMessage } from '@/services/errorUtils';
 
 const visibleCategories = AUCTION_CATEGORIES.filter(
   (category) => category.key !== 'ALL',
@@ -35,20 +39,30 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [isFetching, setIsFetching] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] =
     useState<AuctionCategoryKey>('ALL');
 
-  const loadAuctions = useCallback(async () => {
-    setIsFetching(true);
+  const loadAuctions = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsFetching(true);
+    }
     try {
       const data = await auctionService.getAuctions({
         sort: 'hot',
         activeOnly: true,
       });
       setAuctions(data);
+    } catch (error) {
+      Alert.alert(
+        '경매 목록 오류',
+        `${getFriendlyErrorMessage(error, '경매 목록을 불러오지 못했습니다.')}\n\n요청 주소: ${BACKEND_URL}/api/auctions`,
+      );
     } finally {
-      setIsFetching(false);
+      if (!silent) {
+        setIsFetching(false);
+      }
     }
   }, []);
 
@@ -59,10 +73,19 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isSignedIn) {
-        loadAuctions();
+        loadAuctions(true);
       }
     }, [isSignedIn, loadAuctions]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAuctions(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadAuctions]);
 
   const filteredAuctions = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -122,6 +145,9 @@ export default function HomeScreen() {
           styles.scrollContent,
           { paddingBottom: 38 + insets.bottom },
         ]}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >

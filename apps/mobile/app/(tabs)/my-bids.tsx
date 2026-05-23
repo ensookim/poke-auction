@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -20,25 +21,39 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
+import { isAuthSessionExpiredError } from '@/services/apiClient';
+import { getFriendlyErrorMessage } from '@/services/errorUtils';
 
 export default function MyBids() {
-  const { isLoading, isSignedIn } = useAuth();
+  const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [auctions, setAuctions] = useState<AuctionResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const data = await auctionService.getAuctionsByBidder();
       setAuctions(data);
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        await logout();
+        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
       Alert.alert(
         '오류',
-        error instanceof Error ? error.message : '불러오기 실패',
+        getFriendlyErrorMessage(error, '불러오기 실패'),
       );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -49,10 +64,19 @@ export default function MyBids() {
   useFocusEffect(
     useCallback(() => {
       if (isSignedIn) {
-        load();
+        load(true);
       }
     }, [isSignedIn, load]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await load(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [load]);
 
   const stats = useMemo(
     () => ({
@@ -82,6 +106,9 @@ export default function MyBids() {
           styles.content,
           { paddingBottom: 40 + insets.bottom },
         ]}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >

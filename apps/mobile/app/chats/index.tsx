@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
@@ -16,24 +17,38 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import chatService, { ChatRoomResponse } from '@/services/chatService';
+import { isAuthSessionExpiredError } from '@/services/apiClient';
+import { getFriendlyErrorMessage } from '@/services/errorUtils';
 
 export default function ChatRoomsScreen() {
-  const { isLoading, isSignedIn } = useAuth();
+  const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadRooms = useCallback(async () => {
-    setLoading(true);
+  const loadRooms = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       setRooms(await chatService.getRooms());
     } catch (error) {
+      if (isAuthSessionExpiredError(error)) {
+        await logout();
+        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+        router.replace('/login');
+        return;
+      }
+
       Alert.alert(
         '문의 오류',
-        error instanceof Error ? error.message : '문의 내역을 불러오지 못했습니다.',
+        getFriendlyErrorMessage(error, '문의 내역을 불러오지 못했습니다.'),
       );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -48,10 +63,19 @@ export default function ChatRoomsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isSignedIn) {
-        loadRooms();
+        loadRooms(true);
       }
     }, [isSignedIn, loadRooms]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadRooms(true);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadRooms]);
 
   if (isLoading || loading) {
     return (
@@ -73,6 +97,9 @@ export default function ChatRoomsScreen() {
           styles.content,
           { paddingBottom: 40 + insets.bottom },
         ]}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
