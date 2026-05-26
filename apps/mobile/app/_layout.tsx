@@ -21,13 +21,36 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade_from_bottom',
+          animationDuration: 220,
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        }}
+      >
         {isSignedIn ? (
           <>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen
               name="modal"
-              options={{ presentation: 'modal' }}
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+              }}
+            />
+            <Stack.Screen
+              name="notifications"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
+              name="following"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
             />
           </>
         ) : (
