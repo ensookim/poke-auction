@@ -9,15 +9,15 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import {
+  Redirect,
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  formatPrice,
-  formatRemainingTime,
-  getCategoryMeta,
-} from '@/constants/auction';
+import { formatPrice, formatRemainingTime, getCategoryMeta } from '@/constants/auction';
 import { palette, shadow } from '@/constants/ui';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -25,19 +25,17 @@ import { useAuth } from '@/context/AuthContext';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 import { isAuthSessionExpiredError } from '@/services/apiClient';
 import { getFriendlyErrorMessage } from '@/services/errorUtils';
-import commerceService, {
-  CollectionItemResponse,
-} from '@/services/commerceService';
+import commerceService, { CollectionItemResponse } from '@/services/commerceService';
+import followService, { FollowStats } from '@/services/followService';
 
-type MyTab = 'listings' | 'bids' | 'won' | 'wishlist' | 'cart' | 'profile';
+type MyTab = 'listings' | 'bids' | 'won' | 'wishlist' | 'profile';
 
-const tabs: { key: MyTab; label: string }[] = [
-  { key: 'listings', label: '판매중' },
-  { key: 'bids', label: '입찰' },
-  { key: 'won', label: '낙찰' },
-  { key: 'wishlist', label: '찜' },
-  { key: 'cart', label: '장바구니' },
-  { key: 'profile', label: '정보' },
+const tabDefs: { key: MyTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'listings', label: '판매중', icon: 'pricetag-outline' },
+  { key: 'bids', label: '입찰', icon: 'hammer-outline' },
+  { key: 'won', label: '낙찰', icon: 'trophy-outline' },
+  { key: 'wishlist', label: '관심', icon: 'heart-outline' },
+  { key: 'profile', label: '내정보', icon: 'person-outline' },
 ];
 
 export default function MyScreen() {
@@ -47,56 +45,46 @@ export default function MyScreen() {
   const [bids, setBids] = useState<AuctionResponse[]>([]);
   const [listings, setListings] = useState<AuctionResponse[]>([]);
   const [wishlist, setWishlist] = useState<CollectionItemResponse[]>([]);
-  const [cart, setCart] = useState<CollectionItemResponse[]>([]);
+  const [followStats, setFollowStats] = useState<FollowStats>({
+    followerCount: 0,
+    followingCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const loadMyPage = useCallback(async (silent = false) => {
-    if (!silent) {
-      setLoading(true);
-    }
+    if (!silent) setLoading(true);
     try {
-      const [bidData, listingData, wishlistData, cartData] = await Promise.all([
+      const [bidData, listingData, wishlistData, followData] = await Promise.all([
         auctionService.getAuctionsByBidder(),
         auctionService.getMyListings(),
         commerceService.getWishlist(),
-        commerceService.getCart(),
+        followService.getStats(),
       ]);
       setBids(bidData);
       setListings(listingData);
       setWishlist(wishlistData);
-      setCart(cartData);
+      setFollowStats(followData);
     } catch (error) {
       if (isAuthSessionExpiredError(error)) {
         await logout();
-        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
+        Alert.alert('로그인 만료', '다시 로그인해 주세요.');
         router.replace('/login');
         return;
       }
-
-      Alert.alert(
-        'MY 조회 오류',
-        getFriendlyErrorMessage(error, '내 활동을 불러오지 못했습니다.'),
-      );
+      Alert.alert('MY 조회 오류', getFriendlyErrorMessage(error, '데이터를 불러오지 못했습니다.'));
     } finally {
-      if (!silent) {
-        setLoading(false);
-      }
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
-    if (isSignedIn) {
-      loadMyPage();
-    }
+    if (isSignedIn) loadMyPage();
   }, [isSignedIn, loadMyPage]);
 
   useFocusEffect(
     useCallback(() => {
-      if (isSignedIn) {
-        loadMyPage(true);
-      }
+      if (isSignedIn) loadMyPage(true);
     }, [isSignedIn, loadMyPage]),
   );
 
@@ -114,49 +102,17 @@ export default function MyScreen() {
       activeBids: bids.filter((auction) => auction.active).length,
       won: bids.filter((auction) => auction.winnerId === user?.id).length,
       activeListings: listings.filter((auction) => auction.active).length,
-      cartTotal: cart.reduce(
-        (sum, item) => sum + (item.auction.buyNowPrice ?? 0),
-        0,
-      ),
     }),
-    [bids, cart, listings, user?.id],
+    [bids, listings, user?.id],
   );
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
-
-  const handleCheckout = async () => {
-    try {
-      setIsCheckingOut(true);
-      const checkout = await commerceService.checkoutCart();
-      Alert.alert(
-        '결제 준비 완료',
-        `${checkout.itemCount}개 상품, 총 ${formatPrice(
-          checkout.totalAmount,
-        )} 결제를 진행할 수 있습니다.\n\n실제 PG 결제 연동 전 단계입니다.`,
-      );
-    } catch (error) {
-      Alert.alert(
-        '결제 준비 실패',
-        error instanceof Error ? error.message : '장바구니를 확인하지 못했습니다.',
-      );
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
 
   const handleDeleteListing = async (auctionId: number) => {
     try {
       await auctionService.deleteAuction(auctionId);
       setListings((prev) => prev.filter((item) => item.id !== auctionId));
-      await loadMyPage();
+      await loadMyPage(true);
     } catch (error) {
-      Alert.alert(
-        '삭제 실패',
-        error instanceof Error ? error.message : '상품을 삭제하지 못했습니다.',
-      );
+      Alert.alert('삭제 실패', error instanceof Error ? error.message : '상품을 삭제하지 못했습니다.');
     }
   };
 
@@ -168,163 +124,87 @@ export default function MyScreen() {
     );
   }
 
-  if (!isSignedIn) {
-    return <Redirect href="/login" />;
-  }
+  if (!isSignedIn) return <Redirect href="/login" />;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: 40 + insets.bottom },
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-        }
-        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingBottom: 36 + insets.bottom }]}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <View>
             <ThemedText style={styles.eyebrow}>MY</ThemedText>
-            <ThemedText type="title" style={styles.title}>
-              내 활동
-            </ThemedText>
+            <ThemedText type="title" style={styles.title}>내 정보</ThemedText>
           </View>
-          <Pressable style={styles.refreshButton} onPress={() => void loadMyPage(true)}>
-            <Ionicons name="refresh" size={19} color={palette.ink} />
-          </Pressable>
         </View>
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <ThemedText style={styles.avatarText}>
-              {(user?.nickname ?? 'U').slice(0, 1)}
-            </ThemedText>
+            <ThemedText style={styles.avatarText}>{(user?.nickname ?? 'U').slice(0, 1)}</ThemedText>
           </View>
           <View style={styles.profileCopy}>
             <ThemedText style={styles.nickname}>{user?.nickname}</ThemedText>
-            <ThemedText style={styles.profileMeta}>카카오 로그인 · 안전거래 이용중</ThemedText>
-          </View>
-          <View style={styles.safeBadge}>
-            <Ionicons name="shield-checkmark" size={15} color={palette.success} />
-          </View>
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statValue}>{stats.activeBids}</ThemedText>
-            <ThemedText style={styles.statLabel}>진행 입찰</ThemedText>
-          </View>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statValue}>{stats.activeListings}</ThemedText>
-            <ThemedText style={styles.statLabel}>판매중</ThemedText>
-          </View>
-          <View style={styles.statBox}>
-            <ThemedText style={styles.statValue}>{stats.won}</ThemedText>
-            <ThemedText style={styles.statLabel}>낙찰</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.tabRow}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab.key}
-              style={[styles.tabChip, activeTab === tab.key && styles.tabChipActive]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <ThemedText
-                style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}
-              >
-                {tab.label}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-
-        {activeTab === 'bids' ? (
-          <AuctionList
-            auctions={bids}
-            emptyTitle="아직 입찰한 경매가 없어요"
-            emptyAction="경매 검색하기"
-            onEmptyPress={() => router.push('/buy')}
-          />
-        ) : null}
-
-        {activeTab === 'won' ? (
-          <AuctionList
-            auctions={bids.filter((auction) => auction.winnerId === user?.id)}
-            emptyTitle="낙찰된 경매가 없어요"
-            emptyAction="경매 보러가기"
-            onEmptyPress={() => router.push('/buy')}
-          />
-        ) : null}
-
-        {activeTab === 'listings' ? (
-          <AuctionList
-            auctions={listings}
-            emptyTitle="등록한 판매글이 없어요"
-            emptyAction="경매 등록하기"
-            onEmptyPress={() => router.push('/sell')}
-            onDelete={handleDeleteListing}
-          />
-        ) : null}
-
-        {activeTab === 'wishlist' ? (
-          <AuctionList
-            auctions={wishlist.map((item) => item.auction)}
-            emptyTitle="아직 찜한 상품이 없어요"
-            emptyAction="상품 둘러보기"
-            onEmptyPress={() => router.push('/buy')}
-          />
-        ) : null}
-
-        {activeTab === 'cart' ? (
-          <View>
-            <View style={styles.cartSummary}>
-              <View>
-                <ThemedText style={styles.cartSummaryLabel}>결제 예정 금액</ThemedText>
-                <ThemedText style={styles.cartSummaryValue}>
-                  {formatPrice(stats.cartTotal)}
-                </ThemedText>
-              </View>
-              <Pressable
-                style={[
-                  styles.checkoutButton,
-                  (cart.length === 0 || isCheckingOut) && styles.checkoutButtonDisabled,
-                ]}
-                onPress={handleCheckout}
-                disabled={cart.length === 0 || isCheckingOut}
-              >
-                <Ionicons name="card" size={17} color="#FFFFFF" />
-                <ThemedText style={styles.checkoutText}>
-                  {isCheckingOut ? '확인 중' : '결제하기'}
-                </ThemedText>
+            <ThemedText style={styles.profileMeta}>안전 거래 이용중</ThemedText>
+            <View style={styles.followInlineRow}>
+              <Pressable style={styles.followInlineItem} onPress={() => router.push('/following')}>
+                <ThemedText style={styles.followInlineText}>팔로잉 {followStats.followingCount}</ThemedText>
+              </Pressable>
+              <Pressable style={styles.followInlineItem} onPress={() => router.push('/following')}>
+                <ThemedText style={styles.followInlineText}>팔로워 {followStats.followerCount}</ThemedText>
               </Pressable>
             </View>
-            <AuctionList
-              auctions={cart.map((item) => item.auction)}
-              emptyTitle="장바구니가 비어 있어요"
-              emptyAction="즉시 낙찰 상품 보기"
-              onEmptyPress={() => router.push('/buy')}
-            />
           </View>
-        ) : null}
+          <Pressable style={styles.logoutQuick} onPress={logout}>
+            <Ionicons name="log-out-outline" size={16} color="#9F1239" />
+          </Pressable>
+        </View>
 
-        {activeTab === 'profile' ? (
+        <View style={styles.kpiRow}>
+          <Pressable style={styles.kpiCard} onPress={() => setActiveTab('bids')}>
+            <ThemedText style={styles.kpiValue}>{stats.activeBids}</ThemedText>
+            <ThemedText style={styles.kpiLabel}>입찰</ThemedText>
+          </Pressable>
+          <Pressable style={styles.kpiCard} onPress={() => setActiveTab('listings')}>
+            <ThemedText style={styles.kpiValue}>{stats.activeListings}</ThemedText>
+            <ThemedText style={styles.kpiLabel}>판매중</ThemedText>
+          </Pressable>
+          <Pressable style={styles.kpiCard} onPress={() => setActiveTab('won')}>
+            <ThemedText style={styles.kpiValue}>{stats.won}</ThemedText>
+            <ThemedText style={styles.kpiLabel}>낙찰</ThemedText>
+          </Pressable>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRail}>
+          {tabDefs.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable key={tab.key} style={[styles.tabChip, active && styles.tabChipActive]} onPress={() => setActiveTab(tab.key)}>
+                <Ionicons name={tab.icon} size={14} color={active ? '#FFFFFF' : '#4B5563'} />
+                <ThemedText style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {activeTab === 'bids' && <AuctionList auctions={bids} emptyTitle="입찰 내역이 없어요" emptyAction="경매 보러가기" onEmptyPress={() => router.push('/buy')} />}
+        {activeTab === 'won' && <AuctionList auctions={bids.filter((auction) => auction.winnerId === user?.id)} emptyTitle="낙찰 내역이 없어요" emptyAction="경매 보러가기" onEmptyPress={() => router.push('/buy')} />}
+        {activeTab === 'listings' && <AuctionList auctions={listings} emptyTitle="판매글이 없어요" emptyAction="경매 등록하기" onEmptyPress={() => router.push('/sell')} onDelete={handleDeleteListing} />}
+        {activeTab === 'wishlist' && <AuctionList auctions={wishlist.map((item) => item.auction)} emptyTitle="관심 상품이 없어요" emptyAction="상품 보러가기" onEmptyPress={() => router.push('/buy')} />}
+
+        {activeTab === 'profile' && (
           <View style={styles.profilePanel}>
             <InfoRow icon="person" label="닉네임" value={user?.nickname ?? '-'} />
             <InfoRow icon="card" label="회원번호" value={`#${user?.id ?? '-'}`} />
             <InfoRow icon="chatbubble-ellipses-outline" label="거래 문의" value="판매자 1:1 메시지" />
-            <InfoRow icon="notifications" label="경매 알림" value="마감 임박 알림 준비중" />
-            <Pressable style={styles.logoutButton} onPress={handleLogout}>
+            <Pressable style={styles.logoutButton} onPress={logout}>
               <Ionicons name="log-out-outline" size={18} color={palette.brandDark} />
               <ThemedText style={styles.logoutText}>로그아웃</ThemedText>
             </Pressable>
           </View>
-        ) : null}
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -360,47 +240,21 @@ function AuctionList({
       {auctions.map((auction) => {
         const category = getCategoryMeta(auction.cardCategory);
         return (
-          <Pressable
-            key={auction.id}
-            style={styles.item}
-            onPress={() => router.push(`/auctions/${auction.id}`)}
-          >
+          <Pressable key={auction.id} style={styles.item} onPress={() => router.push(`/auctions/${auction.id}`)}>
             <View style={styles.imageFrame}>
-              <ThemedText style={styles.artMark}>{auction.cardName.slice(0, 1)}</ThemedText>
-              <Image
-                source={{ uri: auction.imageUrl }}
-                style={styles.image}
-                contentFit="cover"
-              />
+              <Image source={{ uri: auction.imageUrl }} style={styles.image} contentFit="cover" />
             </View>
             <View style={styles.itemBody}>
               <View style={styles.itemTop}>
-                <ThemedText style={[styles.category, { color: category.tint }]}>
-                  {category.label}
-                </ThemedText>
-                <ThemedText style={styles.status}>
-                  {auction.active ? '진행중' : '종료'}
-                </ThemedText>
+                <ThemedText style={[styles.category, { color: category.tint }]}>{category.label}</ThemedText>
+                <ThemedText style={styles.status}>{auction.active ? '진행중' : '종료'}</ThemedText>
               </View>
-              <ThemedText style={styles.itemTitle} numberOfLines={1}>
-                {auction.cardName}
-              </ThemedText>
-              <ThemedText style={styles.itemMeta}>
-                {formatRemainingTime(auction.endAt)} · 입찰 {auction.bidCount}회
-              </ThemedText>
-              <ThemedText style={styles.itemPrice}>
-                {formatPrice(auction.currentPrice)}
-              </ThemedText>
+              <ThemedText style={styles.itemTitle} numberOfLines={1}>{auction.cardName}</ThemedText>
+              <ThemedText style={styles.itemMeta}>{formatRemainingTime(auction.endAt)} · 입찰 {auction.bidCount}회</ThemedText>
+              <ThemedText style={styles.itemPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
               {onDelete ? (
-                <Pressable
-                  style={styles.deleteButton}
-                  onPress={() => onDelete(auction.id)}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={14}
-                    color={palette.brandDark}
-                  />
+                <Pressable style={styles.deleteButton} onPress={() => onDelete(auction.id)}>
+                  <Ionicons name="trash-outline" size={14} color={palette.brandDark} />
                   <ThemedText style={styles.deleteButtonText}>삭제</ThemedText>
                 </Pressable>
               ) : null}
@@ -433,342 +287,54 @@ function InfoRow({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: palette.canvas,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.canvas,
-  },
-  scroller: {
-    alignSelf: 'center',
-    maxWidth: 520,
-    width: '100%',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  eyebrow: {
-    color: palette.brand,
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  title: {
-    color: palette.ink,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
-  },
-  refreshButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  profileCard: {
-    alignItems: 'center',
-    backgroundColor: palette.night,
-    borderRadius: 8,
-    flexDirection: 'row',
-    marginBottom: 12,
-    padding: 16,
-    ...shadow,
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    height: 46,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 46,
-  },
-  avatarText: {
-    color: palette.ink,
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  profileCopy: {
-    flex: 1,
-  },
-  nickname: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  profileMeta: {
-    color: '#CBD5E1',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  safeBadge: {
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    borderRadius: 7,
-    height: 32,
-    justifyContent: 'center',
-    width: 32,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  statBox: {
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    padding: 14,
-  },
-  statValue: {
-    color: palette.ink,
-    fontSize: 23,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  statLabel: {
-    color: palette.muted,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  tabRow: {
-    backgroundColor: '#EDEFF3',
-    borderRadius: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginBottom: 14,
-    padding: 4,
-  },
-  tabChip: {
-    alignItems: 'center',
-    borderRadius: 6,
-    minWidth: '31%',
-    flexGrow: 1,
-    paddingVertical: 10,
-  },
-  tabChipActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  tabText: {
-    color: palette.muted,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  tabTextActive: {
-    color: palette.ink,
-  },
-  list: {
-    gap: 12,
-  },
-  cartSummary: {
-    alignItems: 'center',
-    backgroundColor: palette.night,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    padding: 15,
-    ...shadow,
-  },
-  cartSummaryLabel: {
-    color: '#CBD5E1',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  cartSummaryValue: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  checkoutButton: {
-    alignItems: 'center',
-    backgroundColor: palette.brand,
-    borderRadius: 8,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  checkoutButtonDisabled: {
-    opacity: 0.55,
-  },
-  checkoutText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  item: {
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  imageFrame: {
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    aspectRatio: 0.72,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-    width: 104,
-  },
-  artMark: {
-    color: '#CBD5E1',
-    fontSize: 36,
-    fontWeight: '900',
-    position: 'relative',
-    zIndex: 1,
-  },
-  image: {
-    height: '100%',
-    position: 'absolute',
-    width: '100%',
-  },
-  itemBody: {
-    flex: 1,
-    padding: 14,
-  },
-  itemTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  category: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  status: {
-    color: palette.muted,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  itemTitle: {
-    color: palette.ink,
-    fontSize: 17,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  itemMeta: {
-    color: palette.muted,
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  itemPrice: {
-    color: palette.ink,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  deleteButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF1F2',
-    borderRadius: 8,
-    flexDirection: 'row',
-    gap: 5,
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  deleteButtonText: {
-    color: palette.brandDark,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  emptyState: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 10,
-    padding: 28,
-  },
-  emptyTitle: {
-    color: palette.ink,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  emptyButton: {
-    backgroundColor: palette.ink,
-    borderRadius: 8,
-    paddingHorizontal: 17,
-    paddingVertical: 12,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  profilePanel: {
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 14,
-  },
-  infoRow: {
-    alignItems: 'center',
-    borderBottomColor: '#F3F4F6',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    paddingVertical: 13,
-  },
-  infoIcon: {
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 7,
-    height: 32,
-    justifyContent: 'center',
-    marginRight: 10,
-    width: 32,
-  },
-  infoLabel: {
-    color: palette.muted,
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  infoValue: {
-    color: palette.ink,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  logoutButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFF1F2',
-    borderRadius: 8,
-    flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    marginTop: 14,
-    paddingVertical: 13,
-  },
-  logoutText: {
-    color: palette.brandDark,
-    fontSize: 14,
-    fontWeight: '900',
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
+  scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
+  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 36 },
+  header: { marginBottom: 12 },
+  eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
+  title: { color: palette.ink, fontSize: 30, fontWeight: '900', lineHeight: 36 },
+  profileCard: { alignItems: 'center', backgroundColor: palette.night, borderRadius: 8, flexDirection: 'row', marginBottom: 10, padding: 14, ...shadow },
+  avatar: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, height: 48, justifyContent: 'center', marginRight: 12, width: 48 },
+  avatarText: { color: palette.ink, fontSize: 20, fontWeight: '900' },
+  profileCopy: { flex: 1 },
+  nickname: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', marginBottom: 3 },
+  profileMeta: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  followInlineRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  followInlineItem: { backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  followInlineText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  logoutQuick: { alignItems: 'center', backgroundColor: '#FFF1F2', borderRadius: 8, height: 32, justifyContent: 'center', width: 32 },
+  kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  kpiCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, flex: 1, minHeight: 86, justifyContent: 'center', paddingVertical: 10 },
+  kpiValue: { color: palette.ink, fontSize: 26, fontWeight: '900', lineHeight: 30 },
+  kpiLabel: { color: '#4B5563', fontSize: 13, fontWeight: '800', marginTop: 4 },
+  tabRail: { gap: 8, marginBottom: 12, paddingRight: 8 },
+  tabChip: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 12 },
+  tabChipActive: { backgroundColor: '#111827', borderColor: '#111827' },
+  tabText: { color: '#4B5563', fontSize: 12, fontWeight: '900' },
+  tabTextActive: { color: '#FFFFFF' },
+  list: { gap: 10 },
+  item: { backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, flexDirection: 'row', overflow: 'hidden' },
+  imageFrame: { backgroundColor: '#F3F4F6', aspectRatio: 0.72, overflow: 'hidden', position: 'relative', width: 104 },
+  image: { height: '100%', position: 'absolute', width: '100%' },
+  itemBody: { flex: 1, padding: 12 },
+  itemTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  category: { fontSize: 12, fontWeight: '900' },
+  status: { color: palette.muted, fontSize: 12, fontWeight: '800' },
+  itemTitle: { color: palette.ink, fontSize: 16, fontWeight: '900', marginBottom: 5 },
+  itemMeta: { color: palette.muted, fontSize: 12, marginBottom: 8 },
+  itemPrice: { color: palette.ink, fontSize: 17, fontWeight: '900' },
+  deleteButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#FFF1F2', borderRadius: 8, flexDirection: 'row', gap: 5, marginTop: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  deleteButtonText: { color: palette.brandDark, fontSize: 12, fontWeight: '900' },
+  emptyState: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, gap: 10, padding: 24 },
+  emptyTitle: { color: palette.ink, fontSize: 16, fontWeight: '900' },
+  emptyButton: { backgroundColor: palette.ink, borderRadius: 8, paddingHorizontal: 15, paddingVertical: 10 },
+  emptyButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  profilePanel: { backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, padding: 12 },
+  infoRow: { alignItems: 'center', borderBottomColor: '#F3F4F6', borderBottomWidth: 1, flexDirection: 'row', paddingVertical: 12 },
+  infoIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', marginRight: 10, width: 30 },
+  infoLabel: { color: palette.muted, flex: 1, fontSize: 13, fontWeight: '800' },
+  infoValue: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  logoutButton: { alignItems: 'center', backgroundColor: '#FFF1F2', borderRadius: 8, flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 12, paddingVertical: 12 },
+  logoutText: { color: palette.brandDark, fontSize: 14, fontWeight: '900' },
 });

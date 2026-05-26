@@ -10,19 +10,21 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: palette.brand,
-        tabBarInactiveTintColor: palette.subtle,
+        animation: 'fade',
+        tabBarActiveTintColor: palette.ink,
+        tabBarInactiveTintColor: '#A1A1AA',
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
           fontFamily: typography.family,
           fontSize: 11,
           fontWeight: '800',
+          marginTop: 2,
         },
         tabBarStyle: {
-          backgroundColor: palette.surface,
-          borderTopColor: palette.line,
-          height: 68,
-          paddingBottom: 10,
+          backgroundColor: '#F4F4F5',
+          borderTopColor: '#E4E4E7',
+          height: 74,
+          paddingBottom: 11,
           paddingTop: 8,
         },
       }}
@@ -31,8 +33,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: '홈',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -40,8 +42,8 @@ export default function TabLayout() {
         name="buy"
         options={{
           title: '검색',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'search' : 'search-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -50,16 +52,18 @@ export default function TabLayout() {
         options={{
           title: '등록',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="camera-outline" size={size} color={color} />
+            <Ionicons name="add-circle" size={size + 2} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
-          title: '문의',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          title: '채팅',
+          tabBarBadge: 0,
+          tabBarBadgeStyle: { display: 'none' },
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -67,23 +71,13 @@ export default function TabLayout() {
         name="my"
         options={{
           title: 'MY',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="my-bids"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="my-bids" options={{ href: null }} />
+      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }
