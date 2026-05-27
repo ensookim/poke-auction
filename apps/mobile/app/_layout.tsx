@@ -52,6 +52,12 @@ function RootLayoutNav() {
                 animation: 'fade_from_bottom',
               }}
             />
+            <Stack.Screen
+              name="nickname"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
           </>
         ) : (
           <Stack.Screen

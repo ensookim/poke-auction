@@ -86,4 +86,8 @@ public class User {
 
         return this.restrictedUntil == null || this.restrictedUntil.isAfter(LocalDateTime.now());
     }
+
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
 }

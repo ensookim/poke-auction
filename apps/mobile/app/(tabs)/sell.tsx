@@ -1,14 +1,17 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+import { CameraCapturedPicture, CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Redirect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +49,10 @@ const durationOptions = [
 
 const pricePresets = ['1000', '5000', '10000', '30000'];
 const incrementPresets = ['100', '500', '1000', '5000'];
+const cardAspect = {
+  width: 5,
+  height: 7,
+};
 const cardImagePickerOptions: ImagePicker.ImagePickerOptions = {
   allowsEditing: true,
   aspect: [5, 7],
@@ -53,9 +60,64 @@ const cardImagePickerOptions: ImagePicker.ImagePickerOptions = {
   quality: 0.9,
 };
 
+type LayoutRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+function getCardGuideFrame(layout: LayoutRect): LayoutRect {
+  const maxWidth = Math.max(0, layout.width - 48);
+  const maxHeight = Math.max(0, layout.height - 220);
+  const width = Math.min(
+    maxWidth,
+    maxHeight * (cardAspect.width / cardAspect.height),
+  );
+  const height = width * (cardAspect.height / cardAspect.width);
+  const x = (layout.width - width) / 2;
+  const preferredY = (layout.height - height) / 2 - 10;
+  const maxY = layout.height - height - 132;
+  const y = Math.max(88, Math.min(preferredY, maxY));
+
+  return { x, y, width, height };
+}
+
+function getCardCropRect(photo: CameraCapturedPicture, preview: LayoutRect) {
+  const frame = getCardGuideFrame(preview);
+  const photoAspect = photo.width / photo.height;
+  const previewAspect = preview.width / preview.height;
+  let visibleX = 0;
+  let visibleY = 0;
+  let visibleWidth = photo.width;
+  let visibleHeight = photo.height;
+
+  if (photoAspect > previewAspect) {
+    visibleWidth = photo.height * previewAspect;
+    visibleX = (photo.width - visibleWidth) / 2;
+  } else {
+    visibleHeight = photo.width / previewAspect;
+    visibleY = (photo.height - visibleHeight) / 2;
+  }
+
+  const originX = visibleX + (frame.x / preview.width) * visibleWidth;
+  const originY = visibleY + (frame.y / preview.height) * visibleHeight;
+  const width = (frame.width / preview.width) * visibleWidth;
+  const height = (frame.height / preview.height) * visibleHeight;
+
+  return {
+    originX: Math.max(0, Math.round(originX)),
+    originY: Math.max(0, Math.round(originY)),
+    width: Math.min(photo.width - Math.round(originX), Math.round(width)),
+    height: Math.min(photo.height - Math.round(originY), Math.round(height)),
+  };
+}
+
 export default function SellScreen() {
   const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cardName, setCardName] = useState('');
   const [cardDescription, setCardDescription] = useState('');
   const [cardRarity, setCardRarity] = useState('');
@@ -79,6 +141,9 @@ export default function SellScreen() {
   const [buyNowPrice, setBuyNowPrice] = useState('');
   const [durationHours, setDurationHours] = useState('24');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCardCameraVisible, setIsCardCameraVisible] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [cameraLayout, setCameraLayout] = useState<LayoutRect | null>(null);
 
   const selectedCategory = useMemo(
     () =>
@@ -151,17 +216,46 @@ export default function SellScreen() {
   }, []);
 
   const takePhoto = useCallback(async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    const permission = cameraPermission?.granted
+      ? cameraPermission
+      : await requestCameraPermission();
     if (!permission.granted) {
       Alert.alert('카메라 접근 필요', '카드 사진을 촬영하려면 권한이 필요합니다.');
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync(cardImagePickerOptions);
-    if (!result.canceled) {
-      setImageUrl(result.assets[0].uri);
-    }
+    setIsCardCameraVisible(true);
+  }, [cameraPermission, requestCameraPermission]);
+
+  const handleCameraLayout = useCallback((event: LayoutChangeEvent) => {
+    setCameraLayout(event.nativeEvent.layout);
   }, []);
+
+  const captureCardPhoto = useCallback(async () => {
+    if (!cameraRef.current || !cameraLayout || isCapturing) {
+      return;
+    }
+
+    try {
+      setIsCapturing(true);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.95,
+        skipProcessing: false,
+      });
+      const cropped = await manipulateAsync(
+        photo.uri,
+        [{ crop: getCardCropRect(photo, cameraLayout) }],
+        { compress: 0.9, format: SaveFormat.JPEG },
+      );
+
+      setImageUrl(cropped.uri);
+      setIsCardCameraVisible(false);
+    } catch {
+      Alert.alert('카메라 오류', '카드 사진을 촬영하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [cameraLayout, isCapturing]);
 
   const handleSubmit = useCallback(async () => {
     if (!cardName.trim()) {
@@ -262,6 +356,7 @@ export default function SellScreen() {
     durationHours,
     gradeText,
     imageUrl,
+    logout,
     minimumIncrement,
     productType,
     rawCondition,
@@ -278,6 +373,66 @@ export default function SellScreen() {
 
   if (!isSignedIn) {
     return <Redirect href="/login" />;
+  }
+
+  const guideFrame = cameraLayout ? getCardGuideFrame(cameraLayout) : null;
+
+  if (isCardCameraVisible) {
+    return (
+      <SafeAreaView style={styles.cardCameraContainer} edges={['top', 'bottom']}>
+        <View style={styles.cardCameraPreview} onLayout={handleCameraLayout}>
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            flash="off"
+            mode="picture"
+            animateShutter
+          />
+          <View pointerEvents="none" style={styles.cardCameraScrim}>
+            <ThemedText style={styles.cardCameraTitle}>카드를 프레임에 맞춰주세요</ThemedText>
+            <ThemedText style={styles.cardCameraSubtitle}>5:7 비율로 촬영됩니다</ThemedText>
+            {guideFrame ? (
+              <View
+                style={[
+                  styles.cardCameraFrame,
+                  {
+                    height: guideFrame.height,
+                    left: guideFrame.x,
+                    top: guideFrame.y,
+                    width: guideFrame.width,
+                  },
+                ]}
+              />
+            ) : null}
+          </View>
+          <View
+            style={[
+              styles.cardCameraControls,
+              { paddingBottom: Math.max(insets.bottom, 20) },
+            ]}
+          >
+            <Pressable
+              style={styles.cardCameraIconButton}
+              onPress={() => setIsCardCameraVisible(false)}
+            >
+              <Ionicons name="close" size={25} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              style={[
+                styles.cardCameraShutter,
+                isCapturing && styles.cardCameraShutterDisabled,
+              ]}
+              disabled={isCapturing || !cameraLayout}
+              onPress={captureCardPhoto}
+            >
+              <View style={styles.cardCameraShutterInner} />
+            </Pressable>
+            <View style={styles.cardCameraIconButtonPlaceholder} />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -759,6 +914,83 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: palette.canvas,
+  },
+  cardCameraContainer: {
+    backgroundColor: '#000000',
+    flex: 1,
+  },
+  cardCameraPreview: {
+    backgroundColor: '#000000',
+    flex: 1,
+  },
+  cardCameraScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+  },
+  cardCameraTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    textAlign: 'center',
+  },
+  cardCameraSubtitle: {
+    color: '#E5E7EB',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  cardCameraFrame: {
+    borderColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 3,
+    position: 'absolute',
+  },
+  cardCameraControls: {
+    alignItems: 'center',
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 0,
+    paddingHorizontal: 28,
+    paddingTop: 24,
+    position: 'absolute',
+    right: 0,
+  },
+  cardCameraIconButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.46)',
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  cardCameraIconButtonPlaceholder: {
+    height: 56,
+    width: 56,
+  },
+  cardCameraShutter: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 38,
+    borderWidth: 4,
+    height: 76,
+    justifyContent: 'center',
+    width: 76,
+  },
+  cardCameraShutterDisabled: {
+    opacity: 0.55,
+  },
+  cardCameraShutterInner: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#111827',
+    borderRadius: 28,
+    borderWidth: 1,
+    height: 56,
+    width: 56,
   },
   centered: {
     flex: 1,

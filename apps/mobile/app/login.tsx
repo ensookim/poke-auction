@@ -51,6 +51,7 @@ export default function LoginScreen() {
       const refreshToken = parsedUrl.searchParams.get('refreshToken');
       const userId = parsedUrl.searchParams.get('userId');
       const nickname = parsedUrl.searchParams.get('nickname');
+      const isNewUser = parsedUrl.searchParams.get('isNewUser') === 'true';
 
       console.log('🟢 userId:', userId);
       console.log('🟢 nickname:', nickname);
@@ -75,9 +76,11 @@ export default function LoginScreen() {
 
       console.log('✅ checkAuth 끝. 홈으로 이동 시도');
 
-      router.replace('/');
-
-      router.replace('/');
+      if (isNewUser) {
+        router.replace('/nickname');
+      } else {
+        router.replace('/');
+      }
     } catch (error) {
       console.error('카카오 로그인 처리 실패:', error);
 

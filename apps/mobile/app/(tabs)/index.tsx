@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeHomeTab, setActiveHomeTab] = useState(0);
   const [activeAd, setActiveAd] = useState(0);
+  const mainScrollRef = useRef<ScrollView>(null);
   const tabPagerRef = useRef<ScrollView>(null);
   const adPagerRef = useRef<ScrollView>(null);
   const contentWidth = Math.max(width - H_PADDING * 2, 280);
@@ -83,6 +85,16 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [contentWidth]);
 
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('homeTabDoublePress', () => {
+      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -121,6 +133,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
+        ref={mainScrollRef}
         style={styles.scroller}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 38 + insets.bottom }]}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}

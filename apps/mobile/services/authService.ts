@@ -60,6 +60,10 @@ export interface KakaoLoginRequest {
   redirectUri: string;
 }
 
+interface NicknameAvailabilityResponse {
+  available: boolean;
+}
+
 const isJwtExpired = (token: string): boolean => {
   try {
     const payload = token.split('.')[1];
@@ -166,6 +170,30 @@ class AuthService {
       `${BACKEND_URL}/api/auth/refresh`,
       { refreshToken },
     );
+
+    await this.saveTokens(response.data.accessToken, response.data.refreshToken);
+    await this.saveUser({
+      id: response.data.userId,
+      nickname: response.data.nickname,
+    });
+
+    return response.data;
+  }
+
+  async checkNicknameAvailability(nickname: string): Promise<boolean> {
+    const response = await this.client.get<NicknameAvailabilityResponse>(
+      '/api/auth/nickname/available',
+      {
+        params: { nickname },
+      },
+    );
+    return response.data.available;
+  }
+
+  async updateNickname(nickname: string): Promise<LoginResponse> {
+    const response = await this.client.patch<LoginResponse>('/api/auth/nickname', {
+      nickname,
+    });
 
     await this.saveTokens(response.data.accessToken, response.data.refreshToken);
     await this.saveUser({

@@ -1,11 +1,14 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { DeviceEventEmitter } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { palette, typography } from '@/constants/ui';
 
 export default function TabLayout() {
+  const lastHomeTabPressRef = React.useRef(0);
+
   return (
     <Tabs
       screenOptions={{
@@ -37,6 +40,20 @@ export default function TabLayout() {
             <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            if (!navigation.isFocused()) {
+              lastHomeTabPressRef.current = 0;
+              return;
+            }
+
+            const now = Date.now();
+            if (now - lastHomeTabPressRef.current < 350) {
+              DeviceEventEmitter.emit('homeTabDoublePress');
+            }
+            lastHomeTabPressRef.current = now;
+          },
+        })}
       />
       <Tabs.Screen
         name="buy"
@@ -51,9 +68,7 @@ export default function TabLayout() {
         name="sell"
         options={{
           title: '등록',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" size={size + 2} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="add-circle" size={size + 2} color={color} />,
         }}
       />
       <Tabs.Screen
