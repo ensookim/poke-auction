@@ -13,8 +13,13 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-        format_sql: true
-    show-sql: true
+        format_sql: false
+    show-sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
 
 server:
   port: 8080

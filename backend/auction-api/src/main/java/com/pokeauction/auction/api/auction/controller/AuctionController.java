@@ -123,6 +123,11 @@ public class AuctionController {
         return auctionService.getAuctionDetails(id);
     }
 
+    @GetMapping("/sellers/{sellerId}/listings")
+    public List<AuctionResponse> sellerListings(@PathVariable Long sellerId) {
+        return auctionService.getAuctionsByCreator(sellerId);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAuction(
             @PathVariable Long id,

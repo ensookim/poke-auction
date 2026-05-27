@@ -49,6 +49,11 @@ public class FollowController {
         return followService.status(resolveUserId(authorization), userId);
     }
 
+    @GetMapping("/follow/{userId}/stats")
+    public FollowStatsResponse userStats(@PathVariable Long userId) {
+        return followService.getStats(userId);
+    }
+
     @PostMapping("/follow/{userId}")
     public FollowStatusResponse follow(
             @PathVariable Long userId,
