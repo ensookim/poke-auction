@@ -1,0 +1,55 @@
+name: Deploy backend
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "backend/auction-api/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Spring Boot API to Lightsail
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Configure SSH
+        env:
+          LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          LIGHTSAIL_PORT: ${{ secrets.LIGHTSAIL_PORT || '22' }}
+          LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$LIGHTSAIL_SSH_KEY" > ~/.ssh/lightsail_key
+          chmod 600 ~/.ssh/lightsail_key
+          ssh-keyscan -p "$LIGHTSAIL_PORT" "$LIGHTSAIL_HOST" >> ~/.ssh/known_hosts
+
+      - name: Pull, build, and restart service
+        env:
+          LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          LIGHTSAIL_PORT: ${{ secrets.LIGHTSAIL_PORT || '22' }}
+          LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER || 'ubuntu' }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/lightsail_key -p "$LIGHTSAIL_PORT" "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" <<'EOF'
+            set -euo pipefail
+
+            cd /home/ubuntu/poke-auction
+            git fetch origin master
+            git reset --hard origin/master
+
+            cd backend/auction-api
+            chmod +x ./gradlew
+            ./gradlew bootJar --no-daemon
+
+            sudo systemctl restart card-auction
+            sudo systemctl --no-pager --full status card-auction
+          EOF
