@@ -1,25 +1,101 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  View,
-  StyleSheet,
   Alert,
-  ActivityIndicator,
+  Dimensions,
+  ImageSourcePropType,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { makeRedirectUri } from 'expo-auth-session';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
+
+import { ThemedText } from '@/components/themed-text';
+import { AppLoadingScreen } from '@/components/app-loading-screen';
 import { useAuth } from '@/context/AuthContext';
 import authService from '@/services/authService';
-import { ThemedText } from '@/components/themed-text';
-import { router } from 'expo-router';
-import { ThemedView } from '../components/themed-view';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const { width: screenWidth } = Dimensions.get('window');
+const slideWidth = screenWidth;
+
+type OnboardingSlide = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  accent: string;
+  background: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  image?: ImageSourcePropType;
+  visual: 'rare' | 'auction' | 'chat' | 'start';
+};
+
+// Later, replace the mock visual with real app screenshots:
+// image: require('@/assets/onboarding/auction-feed.png')
+const slides: OnboardingSlide[] = [
+  {
+    eyebrow: 'DISCOVER',
+    title: '찾고 있던 카드가\n경매에 올라오는 곳',
+    description:
+      '희귀 카드부터 인기 카드까지, 지금 올라온 경매를 한눈에 둘러보세요.',
+    accent: '#FFB020',
+    background: '#211A05',
+    icon: 'sparkles',
+    visual: 'rare',
+  },
+  {
+    eyebrow: 'BID LIVE',
+    title: '입찰 순간까지\n가격이 살아 움직여요',
+    description:
+      '남은 시간과 현재가를 보며 원하는 카드에 바로 입찰할 수 있어요.',
+    accent: '#4F8CFF',
+    background: '#0B2347',
+    icon: 'timer',
+    visual: 'auction',
+  },
+  {
+    eyebrow: 'TALK FIRST',
+    title: '거래 전 궁금한 점은\n채팅으로 먼저 확인해요',
+    description:
+      '상태, 구성품, 배송 조건을 판매자와 직접 확인하고 신중하게 거래하세요.',
+    accent: '#22C55E',
+    background: '#092A24',
+    icon: 'chatbubbles',
+    visual: 'chat',
+  },
+  {
+    eyebrow: 'CARD BID',
+    title: '3초 만에 시작하고\n첫 입찰을 걸어보세요',
+    description:
+      '카카오로 빠르게 시작하고, 나만의 컬렉션을 채워갈 카드를 만나보세요.',
+    accent: '#FEE500',
+    background: '#2A2100',
+    icon: 'flash',
+    visual: 'start',
+  },
+];
 
 export default function LoginScreen() {
   const { isLoading, checkAuth } = useAuth();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const isLastSlide = activeIndex === slides.length - 1;
+
+  const activeSlide = slides[activeIndex] ?? slides[0];
+
+  const buttonLabel = useMemo(
+    () => (isLastSlide ? '카카오톡으로 3초 만에 시작하기' : '다음'),
+    [isLastSlide],
+  );
 
   const handleKakaoLogin = async () => {
     try {
@@ -30,31 +106,21 @@ export default function LoginScreen() {
       });
       const loginUrl = authService.getKakaoLoginUrl(appRedirectUri);
 
-      console.log('🟢 카카오 로그인 URL:', loginUrl);
-      console.log('🟢 앱 리다이렉트 URI:', appRedirectUri);
-
       const result = await WebBrowser.openAuthSessionAsync(
         loginUrl,
         appRedirectUri,
       );
 
-      console.log('🟢 카카오 로그인 결과:', result);
-
       if (result.type !== 'success') {
-        console.log('카카오 로그인 취소/실패:', result);
         return;
       }
 
       const parsedUrl = new URL(result.url);
-
       const accessToken = parsedUrl.searchParams.get('accessToken');
       const refreshToken = parsedUrl.searchParams.get('refreshToken');
       const userId = parsedUrl.searchParams.get('userId');
       const nickname = parsedUrl.searchParams.get('nickname');
       const isNewUser = parsedUrl.searchParams.get('isNewUser') === 'true';
-
-      console.log('🟢 userId:', userId);
-      console.log('🟢 nickname:', nickname);
 
       if (!accessToken || !refreshToken) {
         Alert.alert('로그인 실패', '토큰을 받지 못했습니다.');
@@ -63,27 +129,21 @@ export default function LoginScreen() {
 
       await authService.saveTokens(accessToken, refreshToken);
 
-      if (userId && nickname) {
+      if (userId) {
         await authService.saveUser({
           id: Number(userId),
-          nickname,
+          nickname: nickname ?? '',
         });
       }
 
-      // 저장된 토큰/유저 정보를 AuthContext에 다시 반영
-
       await checkAuth();
 
-      console.log('✅ checkAuth 끝. 홈으로 이동 시도');
-
-      if (isNewUser) {
+      if (isNewUser || !nickname?.trim()) {
         router.replace('/nickname');
       } else {
         router.replace('/');
       }
     } catch (error) {
-      console.error('카카오 로그인 처리 실패:', error);
-
       Alert.alert(
         '로그인 실패',
         error instanceof Error
@@ -95,123 +155,584 @@ export default function LoginScreen() {
     }
   };
 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
+    setActiveIndex(index);
+  };
+
+  const goToLastSlide = () => {
+    scrollRef.current?.scrollTo({
+      x: (slides.length - 1) * slideWidth,
+      animated: true,
+    });
+  };
+
+  const handlePrimaryPress = () => {
+    if (isLastSlide) {
+      handleKakaoLogin();
+      return;
+    }
+
+    scrollRef.current?.scrollTo({
+      x: (activeIndex + 1) * slideWidth,
+      animated: true,
+    });
+  };
+
   if (isLoading || isAuthLoading) {
     return (
-      <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" />
-      </ThemedView>
+      <AppLoadingScreen
+        title={isAuthLoading ? '로그인 중' : 'CardBid'}
+        message={isAuthLoading ? '카카오 계정을 확인하고 있어요' : '경매장을 준비하고 있어요'}
+      />
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <ThemedText type="defaultSemiBold" style={styles.brand}>
-          CardBid
-        </ThemedText>
-
-        <ThemedText type="title" style={styles.title}>
-          카드 경매
-        </ThemedText>
-
-        <ThemedText style={styles.subtitle}>
-          트레이딩 카드부터 한정판 카드까지, 간편하게 입찰해보세요.
-        </ThemedText>
-
-        <View style={styles.loginContainer}>
-          <KakaoLoginButton
-            onPress={handleKakaoLogin}
-            disabled={isAuthLoading}
-          />
+      <View style={styles.topBar}>
+        <View>
+          <ThemedText style={styles.brand}>CardBid</ThemedText>
+          <ThemedText style={styles.brandSub}>TCG Auction</ThemedText>
         </View>
+        {!isLastSlide ? (
+          <Pressable onPress={goToLastSlide} hitSlop={12}>
+            <ThemedText style={styles.skipText}>건너뛰기</ThemedText>
+          </Pressable>
+        ) : (
+          <View style={styles.skipPlaceholder} />
+        )}
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.slider}
+      >
+        {slides.map((slide) => (
+          <View key={slide.eyebrow} style={styles.slide}>
+            <View style={[styles.visualPanel, { backgroundColor: slide.background }]}>
+              <View style={[styles.visualAura, { backgroundColor: slide.accent }]} />
+              <View style={styles.visualHeader}>
+                <View style={[styles.visualBadge, { backgroundColor: slide.accent }]}>
+                  <Ionicons name={slide.icon} size={17} color="#111827" />
+                </View>
+                <ThemedText style={styles.visualBadgeText}>{slide.eyebrow}</ThemedText>
+              </View>
+              {slide.image ? (
+                <Image source={slide.image} style={styles.realImage} contentFit="cover" />
+              ) : (
+                <AppMockVisual slide={slide} />
+              )}
+            </View>
+
+            <View style={styles.copy}>
+              <ThemedText style={styles.eyebrow}>{slide.eyebrow}</ThemedText>
+              <ThemedText style={styles.title}>{slide.title}</ThemedText>
+              <ThemedText style={styles.description}>{slide.description}</ThemedText>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.indicatorRow}>
+          <View style={styles.indicators}>
+            {slides.map((slide, index) => (
+              <View
+                key={slide.eyebrow}
+                style={[
+                  styles.indicator,
+                  activeIndex === index && [
+                    styles.indicatorActive,
+                    { backgroundColor: activeSlide.accent },
+                  ],
+                ]}
+              />
+            ))}
+          </View>
+          <ThemedText style={styles.pageCount}>
+            {activeIndex + 1}/{slides.length}
+          </ThemedText>
+        </View>
+
+        <Pressable
+          onPress={handlePrimaryPress}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            isLastSlide && styles.kakaoButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          {isLastSlide ? (
+            <>
+              <View style={styles.kakaoMark}>
+                <ThemedText style={styles.kakaoMarkText}>T</ThemedText>
+              </View>
+              <ThemedText style={styles.kakaoButtonText}>{buttonLabel}</ThemedText>
+            </>
+          ) : (
+            <>
+              <ThemedText style={styles.primaryButtonText}>{buttonLabel}</ThemedText>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            </>
+          )}
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-function KakaoLoginButton({
-  onPress,
-  disabled,
-}: {
-  onPress: () => void;
-  disabled: boolean;
-}) {
+function AppMockVisual({ slide }: { slide: OnboardingSlide }) {
+  if (slide.visual === 'auction') {
+    return (
+      <View style={styles.phoneMock}>
+        <View style={styles.mockTopBar} />
+        <View style={styles.auctionCard}>
+          <View style={styles.mockImage} />
+          <View style={styles.liveRow}>
+            <View style={styles.liveDot} />
+            <ThemedText style={styles.liveText}>LIVE 00:03:21</ThemedText>
+          </View>
+          <ThemedText style={styles.mockTitle}>블루 아이즈 UR</ThemedText>
+          <View style={styles.priceRow}>
+            <ThemedText style={styles.priceLabel}>현재가</ThemedText>
+            <ThemedText style={styles.priceText}>128,000원</ThemedText>
+          </View>
+          <View style={styles.mockButton}>
+            <ThemedText style={styles.mockButtonText}>입찰하기</ThemedText>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  if (slide.visual === 'chat') {
+    return (
+      <View style={styles.phoneMock}>
+        <View style={styles.mockTopBar} />
+        <View style={styles.chatList}>
+          <ChatBubble align="left" text="하자나 모서리 찍힘 있나요?" />
+          <ChatBubble align="right" text="사진 추가로 보내드릴게요." />
+          <ChatBubble align="left" text="배송은 언제 가능해요?" />
+        </View>
+      </View>
+    );
+  }
+
+  if (slide.visual === 'start') {
+    return (
+      <View style={styles.startVisual}>
+        <View style={styles.packBack} />
+        <View style={styles.packFront}>
+          <Ionicons name="sparkles" size={34} color="#FEE500" />
+          <ThemedText style={styles.packTitle}>OPEN</ThemedText>
+        </View>
+        <View style={styles.smallCardOne} />
+        <View style={styles.smallCardTwo} />
+      </View>
+    );
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.kakaoButton,
-        pressed && styles.kakaoButtonPressed,
-        disabled && styles.kakaoButtonDisabled,
+    <View style={styles.phoneMock}>
+      <View style={styles.mockTopBar} />
+      <View style={styles.feedRow}>
+        <View style={styles.featureCard}>
+          <View style={styles.holoCard}>
+            <Ionicons name="flame" size={42} color="#FDBA74" />
+          </View>
+          <ThemedText style={styles.mockTitle}>Charizard Promo</ThemedText>
+          <ThemedText style={styles.feedPrice}>25,000원</ThemedText>
+        </View>
+        <View style={[styles.featureCard, styles.featureCardOffset]}>
+          <View style={[styles.holoCard, styles.blueCard]}>
+            <Ionicons name="water" size={42} color="#93C5FD" />
+          </View>
+          <ThemedText style={styles.mockTitle}>Blue Dragon</ThemedText>
+          <ThemedText style={styles.feedPrice}>58,000원</ThemedText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ChatBubble({ align, text }: { align: 'left' | 'right'; text: string }) {
+  return (
+    <View
+      style={[
+        styles.chatBubble,
+        align === 'right' ? styles.chatBubbleRight : styles.chatBubbleLeft,
       ]}
     >
-      <ThemedText style={styles.kakaoButtonText} allowFontScaling={false}>
-        {disabled ? '로딩 중...' : '카카오로 시작하기'}
+      <ThemedText
+        style={[
+          styles.chatText,
+          align === 'right' && styles.chatTextRight,
+        ]}
+      >
+        {text}
       </ThemedText>
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#F2F3F7',
+    backgroundColor: '#F7F8FA',
   },
-  content: {
-    width: '100%',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 8,
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    paddingTop: 8,
   },
   brand: {
+    color: '#111827',
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  brandSub: {
+    color: '#98A2B3',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  skipText: {
+    color: '#667085',
     fontSize: 14,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: '#7A7A7A',
-    marginBottom: 8,
+    fontWeight: '800',
+  },
+  skipPlaceholder: {
+    width: 52,
+  },
+  slider: {
+    flex: 1,
+  },
+  slide: {
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    width: slideWidth,
+  },
+  visualPanel: {
+    aspectRatio: 1.02,
+    borderRadius: 8,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    padding: 18,
+  },
+  visualAura: {
+    borderRadius: 150,
+    height: 260,
+    opacity: 0.18,
+    position: 'absolute',
+    right: -82,
+    top: -98,
+    width: 260,
+  },
+  visualHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+    zIndex: 2,
+  },
+  visualBadge: {
+    alignItems: 'center',
+    borderRadius: 8,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  visualBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  realImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  copy: {
+    paddingTop: 26,
+  },
+  eyebrow: {
+    color: '#667085',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 10,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '800',
-    marginBottom: 12,
+    color: '#101828',
+    fontSize: 31,
+    fontWeight: '900',
+    lineHeight: 40,
   },
-  subtitle: {
+  description: {
+    color: '#667085',
     fontSize: 16,
-    color: '#686E7A',
-    textAlign: 'left',
     lineHeight: 24,
-    marginBottom: 32,
-    maxWidth: '92%',
+    marginTop: 14,
   },
-  loginContainer: {
-    width: '100%',
+  footer: {
+    paddingBottom: 18,
+    paddingHorizontal: 22,
+    paddingTop: 12,
   },
-  kakaoButton: {
-    backgroundColor: '#111111',
-    borderRadius: 18,
-    paddingVertical: 18,
+  indicatorRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  indicators: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+  indicator: {
+    backgroundColor: '#D0D5DD',
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  indicatorActive: {
+    width: 28,
+  },
+  pageCount: {
+    color: '#98A2B3',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 8,
+    height: 58,
     justifyContent: 'center',
   },
-  kakaoButtonPressed: {
-    opacity: 0.92,
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
   },
-  kakaoButtonDisabled: {
-    opacity: 0.55,
+  kakaoButton: {
+    backgroundColor: '#FEE500',
+    gap: 10,
   },
   kakaoButtonText: {
+    color: '#191600',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '900',
+  },
+  kakaoMark: {
+    alignItems: 'center',
+    backgroundColor: '#191600',
+    borderRadius: 8,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  kakaoMarkText: {
+    color: '#FEE500',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  pressed: {
+    opacity: 0.88,
+  },
+  phoneMock: {
+    alignSelf: 'center',
+    backgroundColor: '#F8FAFC',
+    borderColor: 'rgba(255,255,255,0.38)',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: '76%',
+    marginTop: 12,
+    overflow: 'hidden',
+    padding: 12,
+    width: '76%',
+  },
+  mockTopBar: {
+    alignSelf: 'center',
+    backgroundColor: '#CBD5E1',
+    borderRadius: 3,
+    height: 5,
+    marginBottom: 12,
+    width: 54,
+  },
+  feedRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  featureCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    flex: 1,
+    padding: 8,
+  },
+  featureCardOffset: {
+    marginTop: 26,
+  },
+  holoCard: {
+    alignItems: 'center',
+    backgroundColor: '#7C2D12',
+    borderRadius: 8,
+    height: 118,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  blueCard: {
+    backgroundColor: '#1E3A8A',
+  },
+  mockTitle: {
+    color: '#101828',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  feedPrice: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  auctionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    flex: 1,
+    padding: 12,
+  },
+  mockImage: {
+    backgroundColor: '#DBEAFE',
+    borderRadius: 8,
+    height: 96,
+    marginBottom: 10,
+  },
+  liveRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+  },
+  liveDot: {
+    backgroundColor: '#EF4444',
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  liveText: {
+    color: '#2563EB',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  priceRow: {
+    marginTop: 12,
+  },
+  priceLabel: {
+    color: '#667085',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  priceText: {
+    color: '#101828',
+    fontSize: 23,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  mockButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    height: 42,
+    justifyContent: 'center',
+    marginTop: 'auto',
+  },
+  mockButtonText: {
     color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  chatList: {
+    flex: 1,
+    gap: 12,
+    justifyContent: 'center',
+  },
+  chatBubble: {
+    borderRadius: 8,
+    maxWidth: '82%',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  chatBubbleLeft: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E5E7EB',
+  },
+  chatBubbleRight: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#111827',
+  },
+  chatText: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  chatTextRight: {
+    color: '#FFFFFF',
+  },
+  startVisual: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  packBack: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 8,
+    height: 160,
+    position: 'absolute',
+    transform: [{ rotate: '-12deg' }, { translateX: -42 }],
+    width: 108,
+  },
+  packFront: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.24)',
+    borderColor: 'rgba(255,255,255,0.38)',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 176,
+    justifyContent: 'center',
+    width: 118,
+  },
+  packTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 10,
+  },
+  smallCardOne: {
+    backgroundColor: '#FEE500',
+    borderRadius: 8,
+    height: 58,
+    position: 'absolute',
+    right: 52,
+    top: 118,
+    transform: [{ rotate: '14deg' }],
+    width: 42,
+  },
+  smallCardTwo: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    bottom: 70,
+    height: 50,
+    left: 58,
+    position: 'absolute',
+    transform: [{ rotate: '-18deg' }],
+    width: 36,
   },
 });

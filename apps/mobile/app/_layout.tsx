@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AppLoadingScreen } from '@/components/app-loading-screen';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -17,7 +18,11 @@ export const unstable_settings = {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { isSignedIn } = useAuth();
+  const { isLoading, isSignedIn } = useAuth();
+
+  if (isLoading) {
+    return <AppLoadingScreen />;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -48,6 +53,12 @@ function RootLayoutNav() {
             />
             <Stack.Screen
               name="following"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
+              name="sellers/[id]"
               options={{
                 animation: 'fade_from_bottom',
               }}

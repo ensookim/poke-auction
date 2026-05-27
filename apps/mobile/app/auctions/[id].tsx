@@ -211,12 +211,12 @@ export default function AuctionDetail() {
   };
 
   const handleContactSeller = async () => {
-    if (requireLogin('판매자에게 문의하려면 카카오 로그인이 필요합니다.')) {
+    if (requireLogin('판매자와 채팅하려면 카카오 로그인이 필요합니다.')) {
       return;
     }
 
     if (!auction?.creatorId) {
-      Alert.alert('문의 불가', '판매자 정보가 없는 경매입니다.');
+      Alert.alert('채팅 불가', '판매자 정보가 없는 경매입니다.');
       return;
     }
 
@@ -229,7 +229,7 @@ export default function AuctionDetail() {
         return;
       }
       Alert.alert(
-        '문의 연결 실패',
+        '채팅 연결 실패',
         error instanceof Error ? error.message : '판매자와 연결하지 못했습니다.',
       );
     } finally {
@@ -331,7 +331,7 @@ export default function AuctionDetail() {
         deliveryMemo: deliveryMemo.trim(),
       });
       setAuction(updated);
-      Alert.alert('배송정보 전송 완료', '판매자 1:1 문의에 배송정보가 전달되었습니다.');
+      Alert.alert('배송정보 전송 완료', '판매자와의 채팅에 배송정보가 전달되었습니다.');
       setDeliveryMemo('');
     } catch (error) {
       if (await handleSessionExpired(error)) {
@@ -427,15 +427,33 @@ export default function AuctionDetail() {
             {auction.cardDescription || '상태와 구성품 설명이 아직 없습니다.'}
           </ThemedText>
           <View style={styles.sellerRow}>
-            <View style={styles.sellerAvatar}>
-              <Ionicons name="person" size={17} color={palette.ink} />
-            </View>
-            <View style={styles.sellerCopy}>
-              <ThemedText style={styles.sellerLabel}>판매자</ThemedText>
-              <ThemedText style={styles.sellerName}>
-                {auction.creatorNickname || `seller #${auction.creatorId ?? '-'}`}
-              </ThemedText>
-            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.sellerProfileButton,
+                pressed && styles.pressedSellerProfile,
+              ]}
+              onPress={() => {
+                if (!auction.creatorId) return;
+                router.push({
+                  pathname: '/sellers/[id]',
+                  params: {
+                    id: String(auction.creatorId),
+                    nickname: auction.creatorNickname || `seller #${auction.creatorId}`,
+                  },
+                } as any);
+              }}
+            >
+              <View style={styles.sellerAvatar}>
+                <Ionicons name="person" size={17} color={palette.ink} />
+              </View>
+              <View style={styles.sellerCopy}>
+                <ThemedText style={styles.sellerLabel}>판매자 상점</ThemedText>
+                <ThemedText style={styles.sellerName}>
+                  {auction.creatorNickname || `seller #${auction.creatorId ?? '-'}`}
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={palette.muted} />
+            </Pressable>
             {!isOwner ? (
               <Pressable
                 style={[styles.sellerChatButton, isCreatingChat && styles.disabledButton]}
@@ -444,7 +462,7 @@ export default function AuctionDetail() {
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={16} color={palette.ink} />
                 <ThemedText style={styles.sellerChatText}>
-                  {isCreatingChat ? '연결중' : '1:1 문의'}
+                  {isCreatingChat ? '연결중' : '채팅'}
                 </ThemedText>
               </Pressable>
             ) : null}
@@ -599,7 +617,7 @@ export default function AuctionDetail() {
               <ThemedText style={styles.panelTitle}>배송정보 입력</ThemedText>
             </View>
             <ThemedText style={styles.helperText}>
-              입력한 정보는 판매자 1:1 문의에 자동으로 전달됩니다.
+              입력한 정보는 판매자와의 채팅에 자동으로 전달됩니다.
             </ThemedText>
             <TextInput
               value={recipientName}
@@ -680,7 +698,7 @@ export default function AuctionDetail() {
             ))}
           </View>
           <ThemedText style={styles.trustHelper}>
-            낙찰 전 사진, 상태, 배송 방법은 판매자와 1:1 문의로 확인하세요.
+            낙찰 전 사진, 상태, 배송 방법은 판매자와 채팅으로 확인하세요.
           </ThemedText>
         </View>
 
@@ -853,6 +871,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flexDirection: 'row',
     padding: 12,
+  },
+  sellerProfileButton: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+  },
+  pressedSellerProfile: {
+    opacity: 0.68,
   },
   sellerAvatar: {
     alignItems: 'center',

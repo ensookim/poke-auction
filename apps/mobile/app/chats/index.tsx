@@ -20,6 +20,22 @@ import chatService, { ChatRoomResponse } from '@/services/chatService';
 import { isAuthSessionExpiredError } from '@/services/apiClient';
 import { getFriendlyErrorMessage } from '@/services/errorUtils';
 
+const formatRoomDate = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+
+  if (sameDay) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
 export default function ChatRoomsScreen() {
   const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
@@ -34,11 +50,11 @@ export default function ChatRoomsScreen() {
     } catch (error) {
       if (isAuthSessionExpiredError(error)) {
         await logout();
-        Alert.alert('로그인 만료', '다시 로그인해 주세요.');
+        Alert.alert('로그인이 만료됐어요', '다시 로그인해주세요.');
         router.replace('/login');
         return;
       }
-      Alert.alert('문의 오류', getFriendlyErrorMessage(error, '문의 내역을 불러오지 못했습니다.'));
+      Alert.alert('채팅 오류', getFriendlyErrorMessage(error, '채팅 목록을 불러오지 못했습니다.'));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -67,7 +83,7 @@ export default function ChatRoomsScreen() {
   if (isLoading || loading) {
     return (
       <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" color="#EF4444" />
+        <ActivityIndicator size="large" color="#111827" />
       </ThemedView>
     );
   }
@@ -78,28 +94,31 @@ export default function ChatRoomsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.eyebrow}>CHAT</ThemedText>
-          <ThemedText type="title" style={styles.title}>문의</ThemedText>
-          <ThemedText style={styles.subtitle}>상대방과 주고받은 대화를 확인해 보세요.</ThemedText>
+          <ThemedText style={styles.title}>채팅</ThemedText>
+          <ThemedText style={styles.subtitle}>거래 전후 대화를 한곳에서 확인해요.</ThemedText>
         </View>
 
         {rooms.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="chatbubble-ellipses" size={34} color="#9CA3AF" />
-            <ThemedText style={styles.emptyTitle}>아직 문의 내역이 없어요</ThemedText>
-            <ThemedText style={styles.emptyText}>경매 상세에서 문의 버튼을 눌러 시작해보세요.</ThemedText>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="chatbubble-ellipses" size={28} color="#667085" />
+            </View>
+            <ThemedText style={styles.emptyTitle}>아직 채팅이 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>
+              경매 상세에서 채팅 버튼을 눌러 판매자와 대화를 시작해보세요.
+            </ThemedText>
           </View>
         ) : (
           <View style={styles.roomList}>
             {rooms.map((room) => (
               <Pressable
                 key={room.id}
-                style={styles.roomItem}
+                style={({ pressed }) => [styles.roomItem, pressed && styles.pressed]}
                 onPress={() =>
                   router.push({
                     pathname: '/chats/[id]',
@@ -107,18 +126,29 @@ export default function ChatRoomsScreen() {
                   })
                 }
               >
-                <View style={styles.imageFrame}>
+                <View style={styles.avatarWrap}>
                   {room.auctionImageUrl ? (
-                    <Image source={{ uri: room.auctionImageUrl }} style={styles.image} contentFit="cover" />
-                  ) : null}
+                    <Image source={{ uri: room.auctionImageUrl }} style={styles.avatarImage} contentFit="cover" />
+                  ) : (
+                    <Ionicons name="person" size={22} color="#98A2B3" />
+                  )}
                 </View>
+
                 <View style={styles.roomBody}>
                   <View style={styles.roomTop}>
-                    <ThemedText style={styles.roomTitle} numberOfLines={1}>{room.otherUserNickname}</ThemedText>
-                    <ThemedText style={styles.roomDate}>{new Date(room.lastMessageAt).toLocaleDateString()}</ThemedText>
+                    <ThemedText style={styles.roomTitle} numberOfLines={1}>
+                      {room.otherUserNickname}
+                    </ThemedText>
+                    <ThemedText style={styles.roomDate}>
+                      {formatRoomDate(room.lastMessageAt)}
+                    </ThemedText>
                   </View>
-                  <ThemedText style={styles.auctionName} numberOfLines={1}>{room.auctionCardName}</ThemedText>
-                  <ThemedText style={styles.preview} numberOfLines={1}>{room.lastMessagePreview || '대화를 시작해보세요.'}</ThemedText>
+                  <ThemedText style={styles.auctionName} numberOfLines={1}>
+                    {room.auctionCardName}
+                  </ThemedText>
+                  <ThemedText style={styles.preview} numberOfLines={1}>
+                    {room.lastMessagePreview || '채팅을 시작해보세요.'}
+                  </ThemedText>
                 </View>
               </Pressable>
             ))}
@@ -130,25 +160,50 @@ export default function ChatRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F7F9' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F6F7F9' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { padding: 20, paddingBottom: 40 },
-  header: { marginBottom: 18 },
-  eyebrow: { color: '#EF4444', fontSize: 12, fontWeight: '900', marginBottom: 4 },
-  title: { color: '#111827', fontSize: 30, fontWeight: '900', lineHeight: 36 },
-  subtitle: { color: '#6B7280', fontSize: 14, lineHeight: 21, marginTop: 6 },
-  emptyState: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: 8, borderWidth: 1, padding: 28 },
-  emptyTitle: { color: '#111827', fontSize: 17, fontWeight: '900', marginBottom: 6, marginTop: 12 },
-  emptyText: { color: '#6B7280', fontSize: 13, textAlign: 'center' },
-  roomList: { gap: 12 },
-  roomItem: { backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: 8, borderWidth: 1, flexDirection: 'row', overflow: 'hidden' },
-  imageFrame: { backgroundColor: '#F3F4F6', aspectRatio: 0.72, overflow: 'hidden', position: 'relative', width: 86 },
-  image: { height: '100%', position: 'absolute', width: '100%' },
-  roomBody: { flex: 1, padding: 14 },
-  roomTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
+  content: { paddingHorizontal: 18, paddingTop: 12 },
+  header: { paddingBottom: 14 },
+  title: { color: '#111827', fontSize: 28, fontWeight: '900' },
+  subtitle: { color: '#667085', fontSize: 14, lineHeight: 20, marginTop: 5 },
+  emptyState: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 96 },
+  emptyIcon: {
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 8,
+    height: 58,
+    justifyContent: 'center',
+    marginBottom: 14,
+    width: 58,
+  },
+  emptyTitle: { color: '#111827', fontSize: 18, fontWeight: '900', marginBottom: 7 },
+  emptyText: { color: '#667085', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  roomList: { borderTopColor: '#EEF0F4', borderTopWidth: 1 },
+  roomItem: {
+    alignItems: 'center',
+    borderBottomColor: '#EEF0F4',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    minHeight: 76,
+    paddingVertical: 10,
+  },
+  avatarWrap: {
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 8,
+    height: 52,
+    justifyContent: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+    width: 52,
+  },
+  avatarImage: { height: '100%', width: '100%' },
+  roomBody: { flex: 1, minWidth: 0 },
+  roomTop: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
   roomTitle: { color: '#111827', flex: 1, fontSize: 16, fontWeight: '900' },
-  roomDate: { color: '#9CA3AF', fontSize: 12 },
-  auctionName: { color: '#EF4444', fontSize: 13, fontWeight: '800', marginBottom: 8 },
-  preview: { color: '#6B7280', fontSize: 14 },
+  roomDate: { color: '#98A2B3', fontSize: 12, fontWeight: '700' },
+  auctionName: { color: '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 3 },
+  preview: { color: '#667085', fontSize: 13, marginTop: 4 },
+  pressed: { opacity: 0.62 },
 });

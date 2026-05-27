@@ -28,6 +28,13 @@ class FollowService {
     return response.data;
   }
 
+  async getUserStats(userId: number): Promise<FollowStats> {
+    const response = await this.client.get<FollowStats>(
+      `/api/me/follow/${userId}/stats`,
+    );
+    return response.data;
+  }
+
   async getFollowing(): Promise<FollowUser[]> {
     const response = await this.client.get<FollowUser[]>('/api/me/following');
     return response.data;
