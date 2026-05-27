@@ -443,7 +443,6 @@ export default function SellScreen() {
           styles.content,
           { paddingBottom: 42 + insets.bottom },
         ]}
-        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -1004,7 +1003,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 42,
   },
   header: {

@@ -121,102 +121,104 @@ export default function ChatRoomScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={23} color="#111827" />
-          </Pressable>
-          <View style={styles.avatar}>
-            <ThemedText style={styles.avatarText}>{otherNickname.slice(0, 1)}</ThemedText>
+        <View style={styles.shell}>
+          <View style={styles.header}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={23} color="#111827" />
+            </Pressable>
+            <View style={styles.avatar}>
+              <ThemedText style={styles.avatarText}>{otherNickname.slice(0, 1)}</ThemedText>
+            </View>
+            <View style={styles.headerCopy}>
+              <ThemedText style={styles.title}>{otherNickname}</ThemedText>
+              <ThemedText style={styles.subtitle}>채팅</ThemedText>
+            </View>
           </View>
-          <View style={styles.headerCopy}>
-            <ThemedText style={styles.title}>{otherNickname}</ThemedText>
-            <ThemedText style={styles.subtitle}>채팅</ThemedText>
-          </View>
-        </View>
 
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={[
-            styles.messageContent,
-            { paddingBottom: 8 + insets.bottom },
-            messages.length === 0 && styles.emptyMessageContent,
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item: message }) => {
-            const mine = message.senderId === user?.id;
-            return (
-              <View style={[styles.messageRow, mine && styles.myMessageRow]}>
-                {!mine ? (
-                  <View style={styles.senderAvatar}>
-                    <ThemedText style={styles.senderAvatarText}>
-                      {message.senderNickname.slice(0, 1)}
-                    </ThemedText>
-                  </View>
-                ) : null}
-                <View style={styles.messageCluster}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={[
+              styles.messageContent,
+              { paddingBottom: 8 + insets.bottom },
+              messages.length === 0 && styles.emptyMessageContent,
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item: message }) => {
+              const mine = message.senderId === user?.id;
+              return (
+                <View style={[styles.messageRow, mine && styles.myMessageRow]}>
                   {!mine ? (
-                    <ThemedText style={styles.senderName}>{message.senderNickname}</ThemedText>
-                  ) : null}
-                  <View style={styles.bubbleLine}>
-                    {mine ? (
-                      <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
-                    ) : null}
-                    <View style={[styles.bubble, mine && styles.myBubble]}>
-                      <ThemedText style={[styles.messageText, mine && styles.myMessageText]}>
-                        {message.content}
+                    <View style={styles.senderAvatar}>
+                      <ThemedText style={styles.senderAvatarText}>
+                        {message.senderNickname.slice(0, 1)}
                       </ThemedText>
                     </View>
+                  ) : null}
+                  <View style={styles.messageCluster}>
                     {!mine ? (
-                      <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
+                      <ThemedText style={styles.senderName}>{message.senderNickname}</ThemedText>
                     ) : null}
+                    <View style={styles.bubbleLine}>
+                      {mine ? (
+                        <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
+                      ) : null}
+                      <View style={[styles.bubble, mine && styles.myBubble]}>
+                        <ThemedText style={[styles.messageText, mine && styles.myMessageText]}>
+                          {message.content}
+                        </ThemedText>
+                      </View>
+                      {!mine ? (
+                        <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubble-ellipses-outline" size={34} color="#98A2B3" />
+                <ThemedText style={styles.emptyTitle}>아직 메시지가 없어요</ThemedText>
+                <ThemedText style={styles.emptyText}>아래 입력창으로 바로 채팅해보세요.</ThemedText>
               </View>
-            );
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="chatbubble-ellipses-outline" size={34} color="#98A2B3" />
-              <ThemedText style={styles.emptyTitle}>아직 메시지가 없어요</ThemedText>
-              <ThemedText style={styles.emptyText}>아래 입력창으로 바로 채팅해보세요.</ThemedText>
-            </View>
-          }
-        />
-
-        <FlatList
-          horizontal
-          data={quickMessages}
-          keyExtractor={(item) => item}
-          contentContainerStyle={styles.quickMessages}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <Pressable style={styles.quickMessageChip} onPress={() => setText(item)}>
-              <ThemedText style={styles.quickMessageText}>{item}</ThemedText>
-            </Pressable>
-          )}
-        />
-
-        <View style={[styles.inputBar, { marginBottom: Math.max(insets.bottom - 4, 0) }]}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="메시지 입력"
-            placeholderTextColor="#98A2B3"
-            style={styles.input}
-            multiline
-            maxLength={500}
-            onFocus={() => listRef.current?.scrollToEnd({ animated: true })}
+            }
           />
-          <Pressable
-            style={[styles.sendButton, (!text.trim() || isSending) && styles.sendButtonDisabled]}
-            onPress={sendMessage}
-            disabled={!text.trim() || isSending}
-          >
-            <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-          </Pressable>
+
+          <FlatList
+            horizontal
+            data={quickMessages}
+            keyExtractor={(item) => item}
+            contentContainerStyle={styles.quickMessages}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <Pressable style={styles.quickMessageChip} onPress={() => setText(item)}>
+                <ThemedText style={styles.quickMessageText}>{item}</ThemedText>
+              </Pressable>
+            )}
+          />
+
+          <View style={[styles.inputBar, { marginBottom: Math.max(insets.bottom - 4, 0) }]}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="메시지 입력"
+              placeholderTextColor="#98A2B3"
+              style={styles.input}
+              multiline
+              maxLength={500}
+              onFocus={() => listRef.current?.scrollToEnd({ animated: true })}
+            />
+            <Pressable
+              style={[styles.sendButton, (!text.trim() || isSending) && styles.sendButtonDisabled]}
+              onPress={sendMessage}
+              disabled={!text.trim() || isSending}
+            >
+              <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -227,13 +229,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F4F7' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F7' },
   keyboardView: { flex: 1 },
+  shell: {
+    alignSelf: 'center',
+    flex: 1,
+    maxWidth: 520,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    width: '100%',
+  },
   header: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderBottomColor: '#EEF0F4',
-    borderBottomWidth: 1,
+    borderColor: '#EEF0F4',
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 58,
+    marginBottom: 8,
+    minHeight: 60,
     paddingHorizontal: 12,
   },
   backButton: { alignItems: 'center', height: 40, justifyContent: 'center', marginRight: 4, width: 34 },
@@ -250,7 +262,7 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   title: { color: '#111827', fontSize: 16, fontWeight: '900' },
   subtitle: { color: '#98A2B3', fontSize: 12, fontWeight: '800', marginTop: 1 },
-  messageContent: { paddingHorizontal: 12, paddingTop: 12 },
+  messageContent: { paddingHorizontal: 2, paddingTop: 4 },
   emptyMessageContent: { flexGrow: 1, justifyContent: 'center' },
   emptyState: { alignItems: 'center', paddingHorizontal: 24 },
   emptyTitle: { color: '#111827', fontSize: 17, fontWeight: '900', marginBottom: 6, marginTop: 12 },
@@ -281,7 +293,7 @@ const styles = StyleSheet.create({
   messageText: { color: '#111827', fontSize: 14, lineHeight: 19 },
   myMessageText: { color: '#111827' },
   timeText: { color: '#98A2B3', fontSize: 10, marginBottom: 2 },
-  quickMessages: { gap: 7, paddingHorizontal: 12, paddingBottom: 7, paddingTop: 6 },
+  quickMessages: { gap: 7, paddingBottom: 7, paddingTop: 6 },
   quickMessageChip: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E5E7EB',
@@ -294,12 +306,13 @@ const styles = StyleSheet.create({
   inputBar: {
     alignItems: 'flex-end',
     backgroundColor: '#FFFFFF',
-    borderTopColor: '#EEF0F4',
-    borderTopWidth: 1,
+    borderColor: '#EEF0F4',
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
   },
   input: {
     backgroundColor: '#F2F4F7',
