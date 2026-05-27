@@ -17,6 +17,7 @@ export interface AuctionResponse {
   createdAt: string;
   active: boolean;
   bidCount: number;
+  wishlistCount?: number;
   creatorId?: number;
   creatorNickname?: string;
   bids?: {
