@@ -27,10 +27,15 @@ public class AuctionResponse {
     private Long creatorId;
     private String creatorNickname;
     private int bidCount;
+    private long wishlistCount;
     private Long winnerId;
     private java.util.List<BidResponse> bids;
 
     public static AuctionResponse from(Auction auction) {
+        return from(auction, 0L);
+    }
+
+    public static AuctionResponse from(Auction auction, long wishlistCount) {
         return AuctionResponse.builder()
                 .id(auction.getId())
                 .cardName(auction.getCardName())
@@ -48,6 +53,7 @@ public class AuctionResponse {
                 .creatorId(auction.getCreatedBy() != null ? auction.getCreatedBy().getId() : null)
                 .creatorNickname(auction.getCreatedBy() != null ? auction.getCreatedBy().getNickname() : null)
                 .bidCount(auction.getBids().size())
+                .wishlistCount(wishlistCount)
                 .winnerId(auction.getWinnerId())
                 .bids(auction.getBids().stream().map(BidResponse::from).toList())
                 .build();

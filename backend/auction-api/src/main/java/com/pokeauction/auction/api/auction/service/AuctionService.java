@@ -11,6 +11,7 @@ import com.pokeauction.auction.api.chat.domain.ChatMessage;
 import com.pokeauction.auction.api.chat.domain.ChatRoom;
 import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
 import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
+import com.pokeauction.auction.api.commerce.repository.WishlistItemRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AuctionService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final WishlistItemRepository wishlistItemRepository;
 
     @Transactional(readOnly = true)
     public List<AuctionResponse> listAuctions(String category, String sort, boolean activeOnly) {
@@ -41,7 +43,7 @@ public class AuctionService {
                 .filter(auction -> !activeOnly || auction.isActive())
                 .filter(auction -> normalizedCategory == null || normalizedCategory.equals(auction.getCardCategory()))
                 .sorted(resolveAuctionComparator(sort))
-                .map(AuctionResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -70,7 +72,7 @@ public class AuctionService {
                 .build();
 
         Auction saved = auctionRepository.save(auction);
-        return AuctionResponse.from(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -117,7 +119,7 @@ public class AuctionService {
         auction.placeBid(bid);
         bidRepository.save(bid);
         Auction saved = auctionRepository.save(auction);
-        return AuctionResponse.from(saved);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -156,14 +158,14 @@ public class AuctionService {
         auction.buyNow(bid);
         bidRepository.save(bid);
         Auction saved = auctionRepository.save(auction);
-        return AuctionResponse.from(saved);
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public AuctionResponse getAuctionDetails(Long auctionId) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
-        return AuctionResponse.from(auction);
+        return toResponse(auction);
     }
 
     @Transactional
@@ -226,7 +228,7 @@ public class AuctionService {
         room.updateLastMessage(message.getContent());
         chatRoomRepository.save(room);
 
-        return AuctionResponse.from(auction);
+        return toResponse(auction);
     }
 
     @Transactional(readOnly = true)
@@ -237,7 +239,7 @@ public class AuctionService {
                 .toList();
 
         return auctionRepository.findAllById(auctionIds).stream()
-                .map(AuctionResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -246,7 +248,7 @@ public class AuctionService {
         return auctionRepository.findAll().stream()
                 .filter(auction -> auction.getCreatedBy() != null && auction.getCreatedBy().getId().equals(creatorId))
                 .sorted(Comparator.comparing(Auction::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .map(AuctionResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -261,6 +263,11 @@ public class AuctionService {
             a.finalizeWinner();
             auctionRepository.save(a);
         }
+    }
+
+    private AuctionResponse toResponse(Auction auction) {
+        long wishlistCount = auction.getId() == null ? 0L : wishlistItemRepository.countByAuctionId(auction.getId());
+        return AuctionResponse.from(auction, wishlistCount);
     }
 
     private void validateCreateAuctionRequest(CreateAuctionRequest request) {
