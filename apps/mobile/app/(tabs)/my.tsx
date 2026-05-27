@@ -157,9 +157,26 @@ export default function MyScreen() {
               </Pressable>
             </View>
           </View>
-          <Pressable style={styles.logoutQuick} onPress={logout}>
-            <Ionicons name="log-out-outline" size={16} color="#9F1239" />
-          </Pressable>
+          <View style={styles.profileActions}>
+            <Pressable
+              style={styles.storeQuick}
+              onPress={() => {
+                if (!user?.id) return;
+                router.push({
+                  pathname: '/sellers/[id]',
+                  params: {
+                    id: String(user.id),
+                    nickname: user.nickname ?? '내 상점',
+                  },
+                } as any);
+              }}
+            >
+              <Ionicons name="storefront-outline" size={16} color="#111827" />
+            </Pressable>
+            <Pressable style={styles.logoutQuick} onPress={logout}>
+              <Ionicons name="log-out-outline" size={16} color="#9F1239" />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.kpiRow}>
@@ -303,6 +320,8 @@ const styles = StyleSheet.create({
   followInlineRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   followInlineItem: { backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   followInlineText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  profileActions: { gap: 8 },
+  storeQuick: { alignItems: 'center', backgroundColor: '#FEE500', borderRadius: 8, height: 32, justifyContent: 'center', width: 32 },
   logoutQuick: { alignItems: 'center', backgroundColor: '#FFF1F2', borderRadius: 8, height: 32, justifyContent: 'center', width: 32 },
   kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   kpiCard: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, flex: 1, minHeight: 86, justifyContent: 'center', paddingVertical: 10 },

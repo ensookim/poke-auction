@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  StatusBar,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -25,6 +27,10 @@ export default function SellerStoreScreen() {
   const fallbackNickname = typeof params.nickname === 'string' ? params.nickname : '판매자';
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const topSafeOffset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+  );
   const [listings, setListings] = useState<AuctionResponse[]>([]);
   const [followStats, setFollowStats] = useState<FollowStats>({
     followerCount: 0,
@@ -108,29 +114,36 @@ export default function SellerStoreScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <ScrollView
         style={styles.scroller}
-        contentContainerStyle={[styles.content, { paddingBottom: 28 + insets.bottom }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: 28 + insets.bottom,
+            paddingTop: topSafeOffset + 12,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
-          <Pressable style={styles.iconButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color="#111827" />
-          </Pressable>
-          <Pressable style={styles.iconButton} onPress={loadStore}>
-            <Ionicons name="refresh" size={19} color="#111827" />
-          </Pressable>
-        </View>
-
         <View style={styles.hero}>
-          <View style={styles.heroGlow} />
+          <View style={styles.heroTopline}>
+            <View style={styles.storeBadge}>
+              <Ionicons name="storefront-outline" size={13} color="#111827" />
+              <ThemedText style={styles.storeBadgeText}>
+                {isMe ? 'MY STORE' : 'SELLER STORE'}
+              </ThemedText>
+            </View>
+            <View style={styles.reliabilityBadge}>
+              <Ionicons name="sparkles" size={13} color="#FEE500" />
+              <ThemedText style={styles.reliabilityText}>LIVE</ThemedText>
+            </View>
+          </View>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <ThemedText style={styles.avatarText}>{sellerName.slice(0, 1)}</ThemedText>
             </View>
             <View style={styles.profileCopy}>
-              <ThemedText style={styles.storeLabel}>SELLER STORE</ThemedText>
               <ThemedText style={styles.storeName}>{sellerName}</ThemedText>
               <ThemedText style={styles.storeMeta}>
                 판매 중 {activeListings}개 · 거래 완료 {soldListings}개
@@ -138,41 +151,46 @@ export default function SellerStoreScreen() {
             </View>
           </View>
 
+          <View style={styles.storeActions}>
+            {isMe ? (
+              <Pressable style={styles.primaryAction} onPress={() => router.push('/sell')}>
+                <Ionicons name="add-circle" size={18} color="#111827" />
+                <ThemedText style={styles.primaryActionText}>새 경매 열기</ThemedText>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={[
+                  styles.primaryAction,
+                  followStatus?.following && styles.secondaryAction,
+                  isFollowingBusy && styles.disabled,
+                ]}
+                onPress={toggleFollow}
+                disabled={isFollowingBusy}
+              >
+                <Ionicons
+                  name={followStatus?.following ? 'checkmark' : 'add'}
+                  size={18}
+                  color="#111827"
+                />
+                <ThemedText style={styles.primaryActionText}>
+                  {followStatus?.following ? '팔로잉' : '팔로우'}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+
           <View style={styles.statsRow}>
             <StatBox label="팔로워" value={followStats.followerCount} />
             <StatBox label="팔로잉" value={followStats.followingCount} />
             <StatBox label="상품" value={listings.length} />
           </View>
-
-          {!isMe ? (
-            <Pressable
-              style={[
-                styles.followButton,
-                followStatus?.following && styles.followingButton,
-                isFollowingBusy && styles.disabled,
-              ]}
-              onPress={toggleFollow}
-              disabled={isFollowingBusy}
-            >
-              <Ionicons
-                name={followStatus?.following ? 'checkmark' : 'add'}
-                size={18}
-                color={followStatus?.following ? '#111827' : '#FFFFFF'}
-              />
-              <ThemedText
-                style={[
-                  styles.followButtonText,
-                  followStatus?.following && styles.followingButtonText,
-                ]}
-              >
-                {followStatus?.following ? '팔로잉' : '팔로우'}
-              </ThemedText>
-            </Pressable>
-          ) : null}
         </View>
 
         <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>판매 상품</ThemedText>
+          <View>
+            <ThemedText style={styles.sectionTitle}>판매 상품</ThemedText>
+            <ThemedText style={styles.sectionSubcopy}>최근 올라온 경매를 확인해보세요.</ThemedText>
+          </View>
           <ThemedText style={styles.sectionMeta}>{listings.length}개</ThemedText>
         </View>
 
@@ -238,24 +256,41 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F8FA' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FA' },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { padding: 18 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  iconButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
+  content: { paddingHorizontal: 18, paddingBottom: 18 },
   hero: {
     backgroundColor: '#111827',
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: 'visible',
     padding: 18,
   },
+  heroTopline: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  storeBadge: {
+    alignItems: 'center',
+    backgroundColor: '#FEE500',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  storeBadgeText: { color: '#111827', fontSize: 11, fontWeight: '900' },
+  reliabilityBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  reliabilityText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   heroGlow: {
     backgroundColor: 'rgba(254, 229, 0, 0.18)',
     borderRadius: 120,
@@ -265,22 +300,53 @@ const styles = StyleSheet.create({
     top: -110,
     width: 220,
   },
-  profileRow: { alignItems: 'center', flexDirection: 'row' },
+  profileRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 74,
+    paddingVertical: 4,
+  },
   avatar: {
     alignItems: 'center',
     backgroundColor: '#FEE500',
     borderRadius: 8,
-    height: 62,
+    height: 66,
     justifyContent: 'center',
     marginRight: 14,
-    width: 62,
+    width: 66,
   },
-  avatarText: { color: '#111827', fontSize: 27, fontWeight: '900' },
-  profileCopy: { flex: 1 },
+  avatarText: {
+    color: '#111827',
+    fontSize: 27,
+    fontWeight: '900',
+    includeFontPadding: true,
+    lineHeight: 36,
+    textAlignVertical: 'center',
+  },
+  profileCopy: { flex: 1, justifyContent: 'center', minHeight: 66 },
   storeLabel: { color: '#FEE500', fontSize: 11, fontWeight: '900', marginBottom: 5 },
-  storeName: { color: '#FFFFFF', fontSize: 25, fontWeight: '900' },
-  storeMeta: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', marginTop: 5 },
-  statsRow: { flexDirection: 'row', gap: 8, marginTop: 18 },
+  storeName: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '900',
+    includeFontPadding: true,
+    lineHeight: 34,
+  },
+  storeMeta: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', lineHeight: 19, marginTop: 3 },
+  storeActions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  primaryAction: {
+    alignItems: 'center',
+    backgroundColor: '#FEE500',
+    borderRadius: 8,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 7,
+    height: 46,
+    justifyContent: 'center',
+  },
+  secondaryAction: { backgroundColor: '#FFFFFF' },
+  primaryActionText: { color: '#111827', fontSize: 14, fontWeight: '900' },
+  statsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   statBox: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 8,
@@ -311,6 +377,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   sectionTitle: { color: '#111827', fontSize: 19, fontWeight: '900' },
+  sectionSubcopy: { color: '#667085', fontSize: 12, fontWeight: '700', marginTop: 3 },
   sectionMeta: { color: '#667085', fontSize: 13, fontWeight: '800' },
   emptyState: {
     alignItems: 'center',

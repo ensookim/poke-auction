@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  StatusBar,
   TextInput,
   View,
 } from 'react-native';
@@ -29,6 +30,10 @@ export default function ChatRoomScreen() {
   const roomId = Number(params.id);
   const otherNickname = typeof params.nickname === 'string' ? params.nickname : '상대방';
   const insets = useSafeAreaInsets();
+  const topSafeOffset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+  );
   const { isLoading, isSignedIn, user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [text, setText] = useState('');
@@ -115,13 +120,13 @@ export default function ChatRoomScreen() {
   if (!isSignedIn) return <Redirect href="/login" />;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        <View style={styles.shell}>
+        <View style={[styles.shell, { paddingTop: topSafeOffset + 10 }]}>
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={23} color="#111827" />
@@ -234,7 +239,6 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: 520,
     paddingHorizontal: 12,
-    paddingTop: 10,
     width: '100%',
   },
   header: {

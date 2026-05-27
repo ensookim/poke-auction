@@ -99,6 +99,7 @@ export default function ChatRoomsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
+          <ThemedText style={styles.eyebrow}>MESSAGES</ThemedText>
           <ThemedText style={styles.title}>채팅</ThemedText>
           <ThemedText style={styles.subtitle}>거래 전후 대화를 한곳에서 확인해요.</ThemedText>
         </View>
@@ -163,9 +164,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { paddingHorizontal: 18, paddingTop: 12 },
-  header: { paddingBottom: 14 },
-  title: { color: '#111827', fontSize: 28, fontWeight: '900' },
+  content: { paddingHorizontal: 20, paddingTop: 8 },
+  header: { marginBottom: 12 },
+  eyebrow: { color: '#EF4444', fontSize: 12, fontWeight: '900', marginBottom: 4 },
+  title: {
+    color: '#111827',
+    fontSize: 30,
+    fontWeight: '900',
+    includeFontPadding: true,
+    lineHeight: 40,
+  },
   subtitle: { color: '#667085', fontSize: 14, lineHeight: 20, marginTop: 5 },
   emptyState: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 96 },
   emptyIcon: {
