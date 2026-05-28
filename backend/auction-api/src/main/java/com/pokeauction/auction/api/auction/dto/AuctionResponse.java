@@ -29,6 +29,14 @@ public class AuctionResponse {
     private int bidCount;
     private long wishlistCount;
     private Long winnerId;
+    private String paymentStatus;
+    private Long paymentAmount;
+    private LocalDateTime paidAt;
+    private LocalDateTime releasedAt;
+    private String trackingNumber;
+    private String shippingCompany;
+    private boolean receivedConfirmed;
+    private LocalDateTime receivedConfirmedAt;
     private java.util.List<BidResponse> bids;
 
     public static AuctionResponse from(Auction auction) {
@@ -55,6 +63,14 @@ public class AuctionResponse {
                 .bidCount(auction.getBids().size())
                 .wishlistCount(wishlistCount)
                 .winnerId(auction.getWinnerId())
+                .paymentStatus(auction.getPaymentStatus() == null ? "NONE" : auction.getPaymentStatus().name())
+                .paymentAmount(auction.getPaymentAmount())
+                .paidAt(auction.getPaidAt())
+                .releasedAt(auction.getReleasedAt())
+                .trackingNumber(auction.getTrackingNumber())
+                .shippingCompany(auction.getShippingCompany())
+                .receivedConfirmed(auction.isReceivedConfirmed())
+                .receivedConfirmedAt(auction.getReceivedConfirmedAt())
                 .bids(auction.getBids().stream().map(BidResponse::from).toList())
                 .build();
     }

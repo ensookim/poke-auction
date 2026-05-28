@@ -58,6 +58,12 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="legal-notice"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="sellers/[id]"
               options={{
                 animation: 'fade_from_bottom',

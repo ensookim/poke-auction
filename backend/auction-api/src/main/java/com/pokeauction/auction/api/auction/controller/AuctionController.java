@@ -3,6 +3,7 @@ package com.pokeauction.auction.api.auction.controller;
 import com.pokeauction.auction.api.auction.dto.AuctionResponse;
 import com.pokeauction.auction.api.auction.dto.CreateAuctionRequest;
 import com.pokeauction.auction.api.auction.dto.ShippingInfoRequest;
+import com.pokeauction.auction.api.auction.dto.TrackingInfoRequest;
 import com.pokeauction.auction.api.auction.service.AuctionService;
 import com.pokeauction.auction.api.auth.service.JwtProvider;
 import com.pokeauction.auction.api.bid.dto.PlaceBidRequest;
@@ -118,6 +119,19 @@ public class AuctionController {
         }
     }
 
+    @PostMapping("/{id}/pay")
+    public AuctionResponse pay(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        try {
+            return auctionService.payAuction(id, userId);
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
     @GetMapping("/{id}")
     public AuctionResponse getAuction(@PathVariable Long id) {
         return auctionService.getAuctionDetails(id);
@@ -147,6 +161,33 @@ public class AuctionController {
         Long userId = resolveUserId(authorization);
         try {
             return auctionService.submitShippingInfo(id, userId, request);
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    @PostMapping("/{id}/tracking-info")
+    public AuctionResponse submitTrackingInfo(
+            @PathVariable Long id,
+            @RequestBody @Valid TrackingInfoRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        try {
+            return auctionService.submitTrackingInfo(id, userId, request);
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    @PostMapping("/{id}/confirm-received")
+    public AuctionResponse confirmReceived(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        try {
+            return auctionService.confirmReceived(id, userId);
         } catch (IllegalStateException | IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }

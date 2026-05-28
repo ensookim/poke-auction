@@ -10,5 +10,6 @@ import java.util.List;
 public class CheckoutResponse {
     private Long totalAmount;
     private int itemCount;
+    private String paymentStatus;
     private List<CollectionItemResponse> items;
 }

@@ -19,6 +19,7 @@ export interface CollectionStatusResponse {
 export interface CheckoutResponse {
   totalAmount: number;
   itemCount: number;
+  paymentStatus: 'HELD';
   items: CollectionItemResponse[];
 }
 

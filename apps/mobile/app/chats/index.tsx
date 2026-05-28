@@ -123,7 +123,11 @@ export default function ChatRoomsScreen() {
                 onPress={() =>
                   router.push({
                     pathname: '/chats/[id]',
-                    params: { id: String(room.id), nickname: room.otherUserNickname },
+                    params: {
+                      id: String(room.id),
+                      nickname: room.otherUserNickname,
+                      otherUserId: String(room.otherUserId),
+                    },
                   })
                 }
               >

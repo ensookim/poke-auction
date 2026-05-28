@@ -2,6 +2,7 @@ package com.pokeauction.auction.api.commerce.service;
 
 import com.pokeauction.auction.api.auction.domain.Auction;
 import com.pokeauction.auction.api.auction.repository.AuctionRepository;
+import com.pokeauction.auction.api.auction.service.AuctionService;
 import com.pokeauction.auction.api.commerce.domain.CartItem;
 import com.pokeauction.auction.api.commerce.domain.WishlistItem;
 import com.pokeauction.auction.api.commerce.dto.CheckoutResponse;
@@ -25,6 +26,7 @@ public class CommerceService {
     private final CartItemRepository cartItemRepository;
     private final AuctionRepository auctionRepository;
     private final UserRepository userRepository;
+    private final AuctionService auctionService;
 
     @Transactional(readOnly = true)
     public List<CollectionItemResponse> getWishlist(Long userId) {
@@ -90,7 +92,7 @@ public class CommerceService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CheckoutResponse checkoutCart(Long userId) {
         List<CartItem> items = cartItemRepository.findByUserIdOrderByCreatedAtDesc(userId);
         if (items.isEmpty()) {
@@ -104,10 +106,22 @@ public class CommerceService {
                 .mapToLong(Auction::getBuyNowPrice)
                 .sum();
 
+        List<Long> auctionIds = items.stream()
+                .map(CartItem::getAuction)
+                .map(Auction::getId)
+                .toList();
+
+        for (Long auctionId : auctionIds) {
+            auctionService.buyNowWithSafePayment(auctionId, userId, null, null, null);
+        }
+
+        cartItemRepository.deleteAll(items);
+
         return CheckoutResponse.builder()
                 .itemCount(items.size())
                 .totalAmount(total)
                 .items(items.stream().map(CollectionItemResponse::from).toList())
+                .paymentStatus("HELD")
                 .build();
     }
 

@@ -66,6 +66,8 @@ class CommerceServiceTests {
 
         assertThat(checkout.getItemCount()).isEqualTo(2);
         assertThat(checkout.getTotalAmount()).isEqualTo(55000L);
+        assertThat(checkout.getPaymentStatus()).isEqualTo("HELD");
+        assertThat(commerceService.getCart(user.getId())).isEmpty();
     }
 
     @Test

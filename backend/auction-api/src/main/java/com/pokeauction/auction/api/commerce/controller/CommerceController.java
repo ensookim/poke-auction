@@ -88,7 +88,7 @@ public class CommerceController {
     ) {
         try {
             return commerceService.checkoutCart(resolveUserId(authorization));
-        } catch (IllegalStateException ex) {
+        } catch (IllegalArgumentException | IllegalStateException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }

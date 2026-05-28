@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,15 +19,30 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import chatService, { ChatMessageResponse, ChatSocketEvent } from '@/services/chatService';
+import safetyService, { SafetyReportReason } from '@/services/safetyService';
 
 type SocketConnection = Awaited<ReturnType<typeof chatService.openSocket>>;
 
 const formatMessageTime = (value: string) =>
   new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+const reportReasons: { label: string; value: SafetyReportReason }[] = [
+  { label: '사기 의심', value: 'FRAUD' },
+  { label: '미발송', value: 'NO_SHIPPING' },
+  { label: '허위 사진', value: 'FAKE_PHOTO' },
+  { label: '외부거래 유도', value: 'OFF_PLATFORM' },
+  { label: '욕설/비매너', value: 'ABUSE' },
+];
+
+const hasOffPlatformPattern = (content: string) =>
+  /(오픈채팅|오픈톡|카톡|카카오톡|계좌|입금|송금|010[-\s]?\d{4}[-\s]?\d{4}|https?:\/\/|open\.kakao)/i.test(
+    content,
+  );
+
 export default function ChatRoomScreen() {
-  const params = useLocalSearchParams<{ id?: string; nickname?: string }>();
+  const params = useLocalSearchParams<{ id?: string; nickname?: string; otherUserId?: string }>();
   const roomId = Number(params.id);
+  const otherUserId = Number(params.otherUserId);
   const otherNickname = typeof params.nickname === 'string' ? params.nickname : '상대방';
   const insets = useSafeAreaInsets();
   const topSafeOffset = Math.max(
@@ -90,10 +105,7 @@ export default function ChatRoomScreen() {
     }
   };
 
-  const sendMessage = async () => {
-    const content = text.trim();
-    if (!content || isSending) return;
-
+  const sendContent = async (content: string) => {
     setIsSending(true);
     try {
       socketRef.current?.send(content);
@@ -104,10 +116,71 @@ export default function ChatRoomScreen() {
     }
   };
 
-  const quickMessages = useMemo(
-    () => ['상태 괜찮을까요?', '즉시낙찰 가능할까요?', '배송은 언제 가능해요?'],
-    [],
-  );
+  const sendMessage = async () => {
+    const content = text.trim();
+    if (!content || isSending) return;
+
+    if (hasOffPlatformPattern(content)) {
+      Alert.alert(
+        '외부거래 주의',
+        '계좌, 전화번호, 오픈채팅 등 앱 밖 거래는 분쟁 시 보호가 어려울 수 있어요. 그래도 보낼까요?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '보내기', onPress: () => void sendContent(content) },
+        ],
+      );
+      return;
+    }
+
+    await sendContent(content);
+  };
+
+  const handleReport = () => {
+    if (!otherUserId) return;
+
+    Alert.alert(
+      '신고하기',
+      '신고 사유를 선택해주세요.',
+      [
+        ...reportReasons.map((reason) => ({
+          text: reason.label,
+          onPress: async () => {
+            try {
+              await safetyService.report({
+                chatRoomId: roomId,
+                reportedUserId: otherUserId,
+                reason: reason.value,
+              });
+              Alert.alert('신고 완료', '확인 후 필요한 조치를 진행할게요.');
+            } catch (error) {
+              Alert.alert('신고 실패', error instanceof Error ? error.message : '신고를 접수하지 못했습니다.');
+            }
+          },
+        })),
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  };
+
+  const handleBlock = () => {
+    if (!otherUserId) return;
+
+    Alert.alert('차단하기', '차단하면 서로 채팅과 입찰이 제한돼요.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '차단',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await safetyService.blockUser(otherUserId);
+            Alert.alert('차단 완료', '이 사용자와의 채팅과 입찰을 제한했어요.');
+          } catch (error) {
+            Alert.alert('차단 실패', error instanceof Error ? error.message : '차단하지 못했습니다.');
+          }
+        },
+      },
+    ]);
+  };
 
   if (isLoading || loading) {
     return (
@@ -138,6 +211,16 @@ export default function ChatRoomScreen() {
               <ThemedText style={styles.title}>{otherNickname}</ThemedText>
               <ThemedText style={styles.subtitle}>채팅</ThemedText>
             </View>
+            {otherUserId ? (
+              <View style={styles.headerActions}>
+                <Pressable style={styles.headerIconButton} onPress={handleReport}>
+                  <Ionicons name="flag-outline" size={17} color="#667085" />
+                </Pressable>
+                <Pressable style={styles.headerIconButton} onPress={handleBlock}>
+                  <Ionicons name="ban-outline" size={17} color="#EF4444" />
+                </Pressable>
+              </View>
+            ) : null}
           </View>
 
           <FlatList
@@ -190,19 +273,6 @@ export default function ChatRoomScreen() {
                 <ThemedText style={styles.emptyText}>아래 입력창으로 바로 채팅해보세요.</ThemedText>
               </View>
             }
-          />
-
-          <FlatList
-            horizontal
-            data={quickMessages}
-            keyExtractor={(item) => item}
-            contentContainerStyle={styles.quickMessages}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <Pressable style={styles.quickMessageChip} onPress={() => setText(item)}>
-                <ThemedText style={styles.quickMessageText}>{item}</ThemedText>
-              </Pressable>
-            )}
           />
 
           <View style={[styles.inputBar, { marginBottom: Math.max(insets.bottom - 4, 0) }]}>
@@ -266,6 +336,15 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   title: { color: '#111827', fontSize: 16, fontWeight: '900' },
   subtitle: { color: '#98A2B3', fontSize: 12, fontWeight: '800', marginTop: 1 },
+  headerActions: { flexDirection: 'row', gap: 6 },
+  headerIconButton: {
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 8,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
   messageContent: { paddingHorizontal: 2, paddingTop: 4 },
   emptyMessageContent: { flexGrow: 1, justifyContent: 'center' },
   emptyState: { alignItems: 'center', paddingHorizontal: 24 },
@@ -297,16 +376,6 @@ const styles = StyleSheet.create({
   messageText: { color: '#111827', fontSize: 14, lineHeight: 19 },
   myMessageText: { color: '#111827' },
   timeText: { color: '#98A2B3', fontSize: 10, marginBottom: 2 },
-  quickMessages: { gap: 7, paddingBottom: 7, paddingTop: 6 },
-  quickMessageChip: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  quickMessageText: { color: '#4B5563', fontSize: 12, fontWeight: '800' },
   inputBar: {
     alignItems: 'flex-end',
     backgroundColor: '#FFFFFF',
@@ -339,3 +408,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: { opacity: 0.35 },
 });
+
+

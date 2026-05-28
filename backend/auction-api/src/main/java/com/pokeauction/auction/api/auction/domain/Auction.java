@@ -44,6 +44,25 @@ public class Auction {
 
     private Long winnerId;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private PaymentStatus paymentStatus = PaymentStatus.NONE;
+
+    private Long paymentAmount;
+
+    private LocalDateTime paidAt;
+
+    private LocalDateTime releasedAt;
+
+    private String trackingNumber;
+
+    private String shippingCompany;
+
+    @Builder.Default
+    private boolean receivedConfirmed = false;
+
+    private LocalDateTime receivedConfirmedAt;
+
     @Version
     @Builder.Default
     @Column(nullable = false)
@@ -67,6 +86,9 @@ public class Auction {
         if (this.currentPrice == null) {
             this.currentPrice = this.startingPrice;
         }
+        if (this.paymentStatus == null) {
+            this.paymentStatus = PaymentStatus.NONE;
+        }
     }
 
     public boolean isActive() {
@@ -89,6 +111,7 @@ public class Auction {
         if (bid.getBidder() != null) {
             this.winnerId = bid.getBidder().getId();
         }
+        markPaymentPending();
     }
 
     public void finalizeWinner() {
@@ -97,6 +120,48 @@ public class Auction {
         Bid highest = this.bids.stream().max((a, b) -> Long.compare(a.getAmount(), b.getAmount())).orElse(null);
         if (highest != null && highest.getBidder() != null) {
             this.winnerId = highest.getBidder().getId();
+            markPaymentPending();
+        }
+    }
+
+    public void updateTracking(String shippingCompany, String trackingNumber) {
+        this.shippingCompany = shippingCompany;
+        this.trackingNumber = trackingNumber;
+    }
+
+    public void confirmReceived() {
+        this.receivedConfirmed = true;
+        this.receivedConfirmedAt = LocalDateTime.now();
+        releasePayment();
+    }
+
+    public boolean isPaymentHeld() {
+        return this.paymentStatus == PaymentStatus.HELD;
+    }
+
+    public void markPaymentPending() {
+        if (this.paymentStatus == PaymentStatus.NONE) {
+            this.paymentStatus = PaymentStatus.PENDING;
+            this.paymentAmount = this.currentPrice;
+        }
+    }
+
+    public void holdPayment() {
+        if (this.winnerId == null) {
+            throw new IllegalStateException("Cannot hold payment before a winner is selected.");
+        }
+        if (this.paymentStatus == PaymentStatus.RELEASED) {
+            throw new IllegalStateException("Payment has already been released.");
+        }
+        this.paymentStatus = PaymentStatus.HELD;
+        this.paymentAmount = this.currentPrice;
+        this.paidAt = LocalDateTime.now();
+    }
+
+    public void releasePayment() {
+        if (this.paymentStatus == PaymentStatus.HELD) {
+            this.paymentStatus = PaymentStatus.RELEASED;
+            this.releasedAt = LocalDateTime.now();
         }
     }
 }

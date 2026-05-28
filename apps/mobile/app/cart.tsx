@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as WebBrowser from 'expo-web-browser';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
 import commerceService, { CollectionItemResponse } from '@/services/commerceService';
+import paymentService from '@/services/paymentService';
 import { formatPrice } from '@/constants/auction';
 import { palette, shadow } from '@/constants/ui';
 import { getFriendlyErrorMessage } from '@/services/errorUtils';
@@ -67,8 +69,32 @@ export default function CartScreen() {
   const checkout = async () => {
     try {
       setCheckingOut(true);
-      const result = await commerceService.checkoutCart();
-      Alert.alert('결제 준비 완료', `${result.itemCount}개 상품, 총 ${formatPrice(result.totalAmount)}`);
+      const prepared = await paymentService.prepareCartPayment();
+      const result = await WebBrowser.openAuthSessionAsync(
+        prepared.checkoutUrl,
+        prepared.successUrl,
+      );
+
+      if (result.type !== 'success') {
+        return;
+      }
+
+      const parsedUrl = new URL(result.url);
+      const paymentKey = parsedUrl.searchParams.get('paymentKey');
+      const orderId = parsedUrl.searchParams.get('orderId');
+      const amount = Number(parsedUrl.searchParams.get('amount'));
+
+      if (!paymentKey || !orderId || !amount) {
+        Alert.alert('결제 실패', '토스 결제 승인 정보를 확인하지 못했습니다.');
+        return;
+      }
+
+      await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      await loadCart(true);
+      Alert.alert(
+        '안전결제 완료',
+        `${prepared.orderName}, 총 ${formatPrice(prepared.amount)} 결제가 보관되었습니다.`,
+      );
     } catch (error) {
       Alert.alert('결제 실패', getFriendlyErrorMessage(error, '결제를 진행하지 못했습니다.'));
     } finally {

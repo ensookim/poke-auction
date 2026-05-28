@@ -27,6 +27,14 @@ export interface AuctionResponse {
     createdAt: string;
   }[];
   winnerId?: number;
+  paymentStatus: 'NONE' | 'PENDING' | 'HELD' | 'RELEASED' | 'REFUNDED';
+  paymentAmount?: number;
+  paidAt?: string;
+  releasedAt?: string;
+  trackingNumber?: string;
+  shippingCompany?: string;
+  receivedConfirmed: boolean;
+  receivedConfirmedAt?: string;
 }
 
 export interface PlaceBidRequest {
@@ -51,6 +59,11 @@ export interface ShippingInfoRequest {
   address: string;
   addressDetail?: string;
   deliveryMemo?: string;
+}
+
+export interface TrackingInfoRequest {
+  shippingCompany: string;
+  trackingNumber: string;
 }
 
 class AuctionService {
@@ -115,6 +128,13 @@ class AuctionService {
     return response.data;
   }
 
+  async payAuction(auctionId: number): Promise<AuctionResponse> {
+    const response = await this.client.post<AuctionResponse>(
+      `/api/auctions/${auctionId}/pay`,
+    );
+    return response.data;
+  }
+
   async createAuction(request: CreateAuctionRequest): Promise<AuctionResponse> {
     const response = await this.client.post<AuctionResponse>(
       '/api/auctions',
@@ -158,6 +178,24 @@ class AuctionService {
     const response = await this.client.post<AuctionResponse>(
       `/api/auctions/${auctionId}/shipping-info`,
       request,
+    );
+    return response.data;
+  }
+
+  async submitTrackingInfo(
+    auctionId: number,
+    request: TrackingInfoRequest,
+  ): Promise<AuctionResponse> {
+    const response = await this.client.post<AuctionResponse>(
+      `/api/auctions/${auctionId}/tracking-info`,
+      request,
+    );
+    return response.data;
+  }
+
+  async confirmReceived(auctionId: number): Promise<AuctionResponse> {
+    const response = await this.client.post<AuctionResponse>(
+      `/api/auctions/${auctionId}/confirm-received`,
     );
     return response.data;
   }

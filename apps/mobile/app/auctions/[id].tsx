@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { isAxiosError } from 'axios';
 import { Image } from 'expo-image';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +32,17 @@ import chatService from '@/services/chatService';
 import commerceService, {
   CollectionStatusResponse,
 } from '@/services/commerceService';
+import paymentService from '@/services/paymentService';
+import sellerReviewService from '@/services/sellerReviewService';
+import safetyService, { SafetyReportReason } from '@/services/safetyService';
+
+const reportReasons: { label: string; value: SafetyReportReason }[] = [
+  { label: '사기 의심', value: 'FRAUD' },
+  { label: '미발송', value: 'NO_SHIPPING' },
+  { label: '허위 사진', value: 'FAKE_PHOTO' },
+  { label: '외부거래 유도', value: 'OFF_PLATFORM' },
+  { label: '기타', value: 'OTHER' },
+];
 
 export default function AuctionDetail() {
   const { isSignedIn, user, logout } = useAuth();
@@ -52,6 +64,14 @@ export default function AuctionDetail() {
   const [addressDetail, setAddressDetail] = useState('');
   const [deliveryMemo, setDeliveryMemo] = useState('');
   const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
+  const [shippingCompany, setShippingCompany] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [isConfirmingReceived, setIsConfirmingReceived] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewContent, setReviewContent] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const loadAuction = useCallback(async () => {
     if (!id) {
@@ -199,7 +219,11 @@ export default function AuctionDetail() {
       setIsBidding(true);
       const updated = await auctionService.buyNow(auction.id);
       setAuction(updated);
-      Alert.alert('낙찰 완료', '즉시 낙찰되었습니다.');
+      await chatService.createRoom(auction.id).catch(() => null);
+      Alert.alert(
+        '낙찰 완료',
+        '즉시 낙찰됐어요. 배송정보를 입력하면 판매자와의 채팅으로 자동 전달됩니다.',
+      );
     } catch (error) {
       if (await handleSessionExpired(error)) {
         return;
@@ -207,6 +231,51 @@ export default function AuctionDetail() {
       Alert.alert('즉시 낙찰 실패', getErrorMessage(error));
     } finally {
       setIsBidding(false);
+    }
+  };
+
+  const handlePayAuction = async () => {
+    if (requireLogin('결제하려면 로그인이 필요합니다.')) {
+      return;
+    }
+
+    if (!auction) {
+      return;
+    }
+
+    try {
+      setIsPaying(true);
+      const prepared = await paymentService.prepareAuctionPayment(auction.id);
+      const result = await WebBrowser.openAuthSessionAsync(
+        prepared.checkoutUrl,
+        prepared.successUrl,
+      );
+
+      if (result.type !== 'success') {
+        return;
+      }
+
+      const parsedUrl = new URL(result.url);
+      const paymentKey = parsedUrl.searchParams.get('paymentKey');
+      const orderId = parsedUrl.searchParams.get('orderId');
+      const amount = Number(parsedUrl.searchParams.get('amount'));
+
+      if (!paymentKey || !orderId || !amount) {
+        Alert.alert('안전결제 실패', '토스 결제 승인 정보를 확인하지 못했습니다.');
+        return;
+      }
+
+      await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      const updated = await auctionService.getAuction(auction.id);
+      setAuction(updated);
+      Alert.alert('안전결제 완료', '결제 금액이 구매확정 전까지 안전하게 보관됩니다.');
+    } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
+      Alert.alert('안전결제 실패', getErrorMessage(error));
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -223,7 +292,14 @@ export default function AuctionDetail() {
     try {
       setIsCreatingChat(true);
       const room = await chatService.createRoom(auction.id);
-      router.push(`/chats/${room.id}` as any);
+      router.push({
+        pathname: '/chats/[id]',
+        params: {
+          id: String(room.id),
+          nickname: room.otherUserNickname,
+          otherUserId: String(room.otherUserId),
+        },
+      } as any);
     } catch (error) {
       if (await handleSessionExpired(error)) {
         return;
@@ -311,6 +387,40 @@ export default function AuctionDetail() {
     });
   };
 
+  const handleReportAuction = () => {
+    if (requireLogin('신고하려면 로그인이 필요합니다.')) {
+      return;
+    }
+
+    if (!auction) {
+      return;
+    }
+
+    Alert.alert(
+      '신고하기',
+      '신고 사유를 선택해주세요.',
+      [
+        ...reportReasons.map((reason) => ({
+          text: reason.label,
+          onPress: async () => {
+            try {
+              await safetyService.report({
+                auctionId: auction.id,
+                reportedUserId: auction.creatorId,
+                reason: reason.value,
+              });
+              Alert.alert('신고 완료', '확인 후 필요한 조치를 진행할게요.');
+            } catch (error) {
+              if (await handleSessionExpired(error)) return;
+              Alert.alert('신고 실패', getErrorMessage(error));
+            }
+          },
+        })),
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  };
+
   const handleSubmitShipping = async () => {
     if (!auction) {
       return;
@@ -343,6 +453,78 @@ export default function AuctionDetail() {
     }
   };
 
+  const handleSubmitTracking = async () => {
+    if (!auction) {
+      return;
+    }
+
+    if (!shippingCompany.trim() || !trackingNumber.trim()) {
+      Alert.alert('송장정보 확인', '택배사와 송장번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmittingTracking(true);
+      const updated = await auctionService.submitTrackingInfo(auction.id, {
+        shippingCompany: shippingCompany.trim(),
+        trackingNumber: trackingNumber.trim(),
+      });
+      setAuction(updated);
+      Alert.alert('송장 등록 완료', '구매자 채팅으로 송장정보가 전달됐어요.');
+    } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
+      Alert.alert('송장 등록 실패', getErrorMessage(error));
+    } finally {
+      setIsSubmittingTracking(false);
+    }
+  };
+
+  const handleConfirmReceived = async () => {
+    if (!auction) {
+      return;
+    }
+
+    try {
+      setIsConfirmingReceived(true);
+      const updated = await auctionService.confirmReceived(auction.id);
+      setAuction(updated);
+      Alert.alert('거래 완료', '이제 판매자 후기를 남길 수 있어요.');
+    } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
+      Alert.alert('거래 완료 실패', getErrorMessage(error));
+    } finally {
+      setIsConfirmingReceived(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!auction?.creatorId) {
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      await sellerReviewService.submitReview(auction.creatorId, {
+        auctionId: auction.id,
+        rating: reviewRating,
+        content: reviewContent.trim(),
+      });
+      Alert.alert('후기 등록 완료', '판매자 상점에 별점과 후기가 반영됐어요.');
+      setReviewContent('');
+    } catch (error) {
+      if (await handleSessionExpired(error)) {
+        return;
+      }
+      Alert.alert('후기 등록 실패', getErrorMessage(error));
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.centered}>
@@ -362,6 +544,9 @@ export default function AuctionDetail() {
   const category = getCategoryMeta(auction.cardCategory);
   const isOwner = auction.creatorId === user?.id;
   const isWinner = auction.winnerId === user?.id;
+  const isPaymentHeld = auction.paymentStatus === 'HELD';
+  const isPaymentReleased = auction.paymentStatus === 'RELEASED';
+  const needsPayment = isWinner && !isPaymentHeld && !isPaymentReleased;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -385,6 +570,11 @@ export default function AuctionDetail() {
             <Pressable style={styles.iconButton} onPress={handleShare}>
               <Ionicons name="share-outline" size={19} color={palette.ink} />
             </Pressable>
+            {!isOwner ? (
+              <Pressable style={styles.iconButton} onPress={handleReportAuction}>
+                <Ionicons name="flag-outline" size={19} color={palette.ink} />
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -611,6 +801,42 @@ export default function AuctionDetail() {
         )}
 
         {!auction.active && isWinner ? (
+          <View style={styles.paymentPanel}>
+            <View style={styles.shippingHeader}>
+              <Ionicons name="shield-checkmark-outline" size={19} color={palette.brand} />
+              <ThemedText style={styles.panelTitle}>안전결제</ThemedText>
+            </View>
+            {needsPayment ? (
+              <>
+                <ThemedText style={styles.helperText}>
+                  낙찰 금액을 결제하면 구매확정 전까지 보관됩니다.
+                </ThemedText>
+                <Pressable
+                  style={[styles.primaryButton, isPaying && styles.disabledButton]}
+                  onPress={handlePayAuction}
+                  disabled={isPaying}
+                >
+                  <ThemedText style={styles.primaryButtonText}>
+                    {isPaying ? '결제 중...' : `${formatPrice(auction.currentPrice)} 결제`}
+                  </ThemedText>
+                </Pressable>
+              </>
+            ) : (
+              <View style={styles.completeBadge}>
+                <Ionicons
+                  name={isPaymentReleased ? 'checkmark-done-circle' : 'lock-closed'}
+                  size={18}
+                  color={palette.success}
+                />
+                <ThemedText style={styles.completeBadgeText}>
+                  {isPaymentReleased ? '정산 완료' : '결제금 보관 중'}
+                </ThemedText>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {!auction.active && isWinner && isPaymentHeld ? (
           <View style={styles.shippingPanel}>
             <View style={styles.shippingHeader}>
               <Ionicons name="location-outline" size={19} color={palette.brand} />
@@ -671,6 +897,124 @@ export default function AuctionDetail() {
           </View>
         ) : null}
 
+        {!auction.active && isOwner && auction.winnerId && isPaymentHeld ? (
+          <View style={styles.shippingPanel}>
+            <View style={styles.shippingHeader}>
+              <Ionicons name="cube-outline" size={19} color={palette.brand} />
+              <ThemedText style={styles.panelTitle}>송장번호 등록</ThemedText>
+            </View>
+            <ThemedText style={styles.helperText}>
+              판매자가 택배사와 송장번호를 입력하면 구매자 채팅으로 자동 전달돼요.
+            </ThemedText>
+            <TextInput
+              value={shippingCompany}
+              onChangeText={setShippingCompany}
+              placeholder={auction.shippingCompany || '택배사'}
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <TextInput
+              value={trackingNumber}
+              onChangeText={setTrackingNumber}
+              placeholder={auction.trackingNumber || '송장번호'}
+              placeholderTextColor={palette.subtle}
+              style={styles.input}
+            />
+            <Pressable
+              style={[styles.primaryButton, isSubmittingTracking && styles.disabledButton]}
+              onPress={handleSubmitTracking}
+              disabled={isSubmittingTracking}
+            >
+              <ThemedText style={styles.primaryButtonText}>
+                {isSubmittingTracking ? '등록 중...' : '송장 등록'}
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {!auction.active && isWinner && (isPaymentHeld || isPaymentReleased) ? (
+          <View style={styles.deliveryPanel}>
+            <View style={styles.shippingHeader}>
+              <Ionicons name="trail-sign-outline" size={19} color={palette.brand} />
+              <ThemedText style={styles.panelTitle}>배송상태</ThemedText>
+            </View>
+            {auction.trackingNumber ? (
+              <View style={styles.deliveryInfoBox}>
+                <ThemedText style={styles.deliveryLabel}>택배사</ThemedText>
+                <ThemedText style={styles.deliveryValue}>{auction.shippingCompany}</ThemedText>
+                <ThemedText style={styles.deliveryLabel}>송장번호</ThemedText>
+                <ThemedText style={styles.deliveryValue}>{auction.trackingNumber}</ThemedText>
+              </View>
+            ) : (
+              <ThemedText style={styles.helperText}>판매자가 송장번호를 등록하면 여기에서 확인할 수 있어요.</ThemedText>
+            )}
+            {auction.receivedConfirmed ? (
+              <View style={styles.completeBadge}>
+                <Ionicons name="checkmark-circle" size={18} color={palette.success} />
+                <ThemedText style={styles.completeBadgeText}>상품 수령 완료</ThemedText>
+              </View>
+            ) : (
+              <Pressable
+                style={[styles.primaryButton, isConfirmingReceived && styles.disabledButton]}
+                onPress={handleConfirmReceived}
+                disabled={isConfirmingReceived}
+              >
+                <ThemedText style={styles.primaryButtonText}>
+                  {isConfirmingReceived ? '처리 중...' : '상품 받았어요'}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        ) : null}
+
+        {!auction.active && isWinner && auction.creatorId && auction.receivedConfirmed ? (
+          <View style={styles.reviewPanel}>
+            <View style={styles.shippingHeader}>
+              <Ionicons name="star-outline" size={19} color={palette.brand} />
+              <ThemedText style={styles.panelTitle}>거래 후기 남기기</ThemedText>
+            </View>
+            <ThemedText style={styles.helperText}>
+              거래가 끝나면 판매자 상점에 별점과 후기를 남길 수 있어요.
+            </ThemedText>
+            <View style={styles.starPicker}>
+              {Array.from({ length: 5 }).map((_, index) => {
+                const value = index + 1;
+                return (
+                  <Pressable
+                    key={value}
+                    style={styles.starButton}
+                    onPress={() => setReviewRating(value)}
+                  >
+                    <Ionicons
+                      name={value <= reviewRating ? 'star' : 'star-outline'}
+                      size={28}
+                      color="#F59E0B"
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              value={reviewContent}
+              onChangeText={setReviewContent}
+              placeholder="거래는 어땠나요? 포장, 소통, 배송 경험을 남겨주세요."
+              placeholderTextColor={palette.subtle}
+              style={[styles.input, styles.reviewInput]}
+              multiline
+              maxLength={500}
+            />
+            <Pressable
+              style={[styles.primaryButton, isSubmittingReview && styles.disabledButton]}
+              onPress={handleSubmitReview}
+              disabled={isSubmittingReview}
+            >
+              <ThemedText style={styles.primaryButtonText}>
+                {isSubmittingReview ? '등록 중...' : '후기 등록'}
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.trustPanel}>
           <ThemedText style={styles.panelTitle}>거래 체크포인트</ThemedText>
           <View style={styles.checklist}>
@@ -699,6 +1043,14 @@ export default function AuctionDetail() {
           </View>
           <ThemedText style={styles.trustHelper}>
             낙찰 전 사진, 상태, 배송 방법은 판매자와 채팅으로 확인하세요.
+          </ThemedText>
+        </View>
+
+        <View style={styles.marketplaceNotice}>
+          <Ionicons name="information-circle-outline" size={17} color={palette.muted} />
+          <ThemedText style={styles.marketplaceNoticeText}>
+            CardPick은 판매자와 구매자를 연결하는 중개 플랫폼입니다. 상품 정보와 거래 이행의
+            1차 책임은 거래 당사자에게 있으며, 의심 거래는 앱 내 채팅 기록을 남기고 신고해 주세요.
           </ThemedText>
         </View>
 
@@ -1123,6 +1475,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 18,
   },
+  paymentPanel: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
   shippingHeader: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1130,6 +1490,57 @@ const styles = StyleSheet.create({
   },
   shippingMemoInput: {
     minHeight: 82,
+    textAlignVertical: 'top',
+  },
+  deliveryPanel: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
+  deliveryInfoBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    gap: 4,
+    marginBottom: 12,
+    padding: 12,
+  },
+  deliveryLabel: { color: palette.muted, fontSize: 12, fontWeight: '800' },
+  deliveryValue: { color: palette.ink, fontSize: 15, fontWeight: '900', marginBottom: 6 },
+  completeBadge: {
+    alignItems: 'center',
+    backgroundColor: '#ECFDF3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  completeBadgeText: { color: palette.success, fontSize: 14, fontWeight: '900' },
+  reviewPanel: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
+  starPicker: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  starButton: {
+    alignItems: 'center',
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  reviewInput: {
+    minHeight: 88,
     textAlignVertical: 'top',
   },
   trustPanel: {
@@ -1191,6 +1602,24 @@ const styles = StyleSheet.create({
     color: palette.muted,
     fontSize: 13,
     lineHeight: 19,
+  },
+  marketplaceNotice: {
+    alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    padding: 12,
+  },
+  marketplaceNoticeText: {
+    color: palette.muted,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   bidHistory: {
     backgroundColor: palette.surface,

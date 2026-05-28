@@ -19,7 +19,20 @@ import { ThemedView } from '@/components/themed-view';
 import { formatPrice, formatRemainingTime } from '@/constants/auction';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 import followService, { FollowStats, FollowStatus } from '@/services/followService';
+import sellerReviewService, {
+  SellerReview,
+  SellerReviewSummary,
+} from '@/services/sellerReviewService';
+import safetyService, { SafetyReportReason } from '@/services/safetyService';
 import { useAuth } from '@/context/AuthContext';
+
+const reportReasons: { label: string; value: SafetyReportReason }[] = [
+  { label: '사기 의심', value: 'FRAUD' },
+  { label: '미발송', value: 'NO_SHIPPING' },
+  { label: '허위 사진', value: 'FAKE_PHOTO' },
+  { label: '외부거래 유도', value: 'OFF_PLATFORM' },
+  { label: '기타', value: 'OTHER' },
+];
 
 export default function SellerStoreScreen() {
   const params = useLocalSearchParams<{ id?: string; nickname?: string }>();
@@ -37,8 +50,15 @@ export default function SellerStoreScreen() {
     followingCount: 0,
   });
   const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null);
+  const [reviewSummary, setReviewSummary] = useState<SellerReviewSummary>({
+    sellerId: 0,
+    averageRating: 0,
+    reviewCount: 0,
+  });
+  const [reviews, setReviews] = useState<SellerReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowingBusy, setIsFollowingBusy] = useState(false);
+  const [isSafetyBusy, setIsSafetyBusy] = useState(false);
 
   const sellerName = listings[0]?.creatorNickname || fallbackNickname;
   const activeListings = useMemo(
@@ -55,14 +75,18 @@ export default function SellerStoreScreen() {
 
     setLoading(true);
     try {
-      const [listingData, statsData, statusData] = await Promise.all([
+      const [listingData, statsData, statusData, summaryData, reviewData] = await Promise.all([
         auctionService.getSellerListings(sellerId),
         followService.getUserStats(sellerId),
         isMe ? Promise.resolve(null) : followService.getStatus(sellerId),
+        sellerReviewService.getSummary(sellerId),
+        sellerReviewService.getReviews(sellerId),
       ]);
       setListings(listingData);
       setFollowStats(statsData);
       setFollowStatus(statusData);
+      setReviewSummary(summaryData);
+      setReviews(reviewData);
     } catch (error) {
       Alert.alert(
         '상점 오류',
@@ -103,6 +127,55 @@ export default function SellerStoreScreen() {
     } finally {
       setIsFollowingBusy(false);
     }
+  };
+
+  const handleReportStore = () => {
+    if (isMe || !sellerId) return;
+
+    Alert.alert(
+      '상점 신고하기',
+      '신고 사유를 선택해주세요.',
+      [
+        ...reportReasons.map((reason) => ({
+          text: reason.label,
+          onPress: async () => {
+            try {
+              await safetyService.report({
+                reportedUserId: sellerId,
+                reason: reason.value,
+              });
+              Alert.alert('신고 완료', '확인 후 필요한 조치를 진행할게요.');
+            } catch (error) {
+              Alert.alert('신고 실패', error instanceof Error ? error.message : '신고하지 못했습니다.');
+            }
+          },
+        })),
+        { text: '취소', style: 'cancel' },
+      ],
+    );
+  };
+
+  const handleBlockSeller = () => {
+    if (isMe || !sellerId) return;
+
+    Alert.alert('판매자 차단', '차단하면 이 판매자와의 채팅과 입찰이 제한돼요.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '차단',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setIsSafetyBusy(true);
+            await safetyService.blockUser(sellerId);
+            Alert.alert('차단 완료', '이 판매자와의 채팅과 입찰을 제한했어요.');
+          } catch (error) {
+            Alert.alert('차단 실패', error instanceof Error ? error.message : '차단하지 못했습니다.');
+          } finally {
+            setIsSafetyBusy(false);
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -179,12 +252,92 @@ export default function SellerStoreScreen() {
             )}
           </View>
 
+          {!isMe ? (
+            <View style={styles.safetyActions}>
+              <Pressable style={styles.safetyAction} onPress={handleReportStore}>
+                <Ionicons name="flag-outline" size={16} color="#CBD5E1" />
+                <ThemedText style={styles.safetyActionText}>신고</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.safetyAction, isSafetyBusy && styles.disabled]}
+                onPress={handleBlockSeller}
+                disabled={isSafetyBusy}
+              >
+                <Ionicons name="ban-outline" size={16} color="#FCA5A5" />
+                <ThemedText style={styles.safetyActionText}>차단</ThemedText>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={styles.statsRow}>
             <StatBox label="팔로워" value={followStats.followerCount} />
             <StatBox label="팔로잉" value={followStats.followingCount} />
             <StatBox label="상품" value={listings.length} />
           </View>
+
+          <View style={styles.ratingBand}>
+            <View>
+              <ThemedText style={styles.ratingLabel}>상점 별점</ThemedText>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={17} color="#FEE500" />
+                <ThemedText style={styles.ratingValue}>
+                  {reviewSummary.reviewCount > 0
+                    ? reviewSummary.averageRating.toFixed(1)
+                    : '-'}
+                </ThemedText>
+              </View>
+            </View>
+            <ThemedText style={styles.ratingCount}>
+              후기 {reviewSummary.reviewCount}개
+            </ThemedText>
+          </View>
         </View>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <ThemedText style={styles.sectionTitle}>거래 후기</ThemedText>
+            <ThemedText style={styles.sectionSubcopy}>낙찰자가 남긴 실제 거래 평가예요.</ThemedText>
+          </View>
+          <ThemedText style={styles.sectionMeta}>{reviews.length}개</ThemedText>
+        </View>
+
+        {reviews.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="star-outline" size={34} color="#98A2B3" />
+            <ThemedText style={styles.emptyTitle}>아직 거래 후기가 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>
+              거래가 끝나고 낙찰자가 별점과 후기를 남길 수 있어요.
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.reviewList}>
+            {reviews.slice(0, 5).map((review) => (
+              <View key={review.id} style={styles.reviewItem}>
+                <View style={styles.reviewTop}>
+                  <View style={styles.reviewStars}>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Ionicons
+                        key={index}
+                        name={index < review.rating ? 'star' : 'star-outline'}
+                        size={14}
+                        color="#F59E0B"
+                      />
+                    ))}
+                  </View>
+                  <ThemedText style={styles.reviewAuthor} numberOfLines={1}>
+                    {review.reviewerNickname}
+                  </ThemedText>
+                </View>
+                <ThemedText style={styles.reviewAuction} numberOfLines={1}>
+                  {review.auctionCardName}
+                </ThemedText>
+                {review.content ? (
+                  <ThemedText style={styles.reviewContent}>{review.content}</ThemedText>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <View>
@@ -334,6 +487,20 @@ const styles = StyleSheet.create({
   },
   storeMeta: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', lineHeight: 19, marginTop: 3 },
   storeActions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  safetyActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  safetyAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    height: 40,
+    justifyContent: 'center',
+  },
+  safetyActionText: { color: '#CBD5E1', fontSize: 13, fontWeight: '900' },
   primaryAction: {
     alignItems: 'center',
     backgroundColor: '#FEE500',
@@ -347,6 +514,19 @@ const styles = StyleSheet.create({
   secondaryAction: { backgroundColor: '#FFFFFF' },
   primaryActionText: { color: '#111827', fontSize: 14, fontWeight: '900' },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  ratingBand: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    padding: 12,
+  },
+  ratingLabel: { color: '#CBD5E1', fontSize: 12, fontWeight: '800', marginBottom: 4 },
+  ratingRow: { alignItems: 'center', flexDirection: 'row', gap: 5 },
+  ratingValue: { color: '#FFFFFF', fontSize: 19, fontWeight: '900' },
+  ratingCount: { color: '#CBD5E1', fontSize: 12, fontWeight: '900' },
   statBox: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 8,
@@ -379,6 +559,19 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#111827', fontSize: 19, fontWeight: '900' },
   sectionSubcopy: { color: '#667085', fontSize: 12, fontWeight: '700', marginTop: 3 },
   sectionMeta: { color: '#667085', fontSize: 13, fontWeight: '800' },
+  reviewList: { gap: 9 },
+  reviewItem: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 13,
+  },
+  reviewTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  reviewStars: { flexDirection: 'row', gap: 2 },
+  reviewAuthor: { color: '#667085', fontSize: 12, fontWeight: '800', maxWidth: 120 },
+  reviewAuction: { color: '#111827', fontSize: 13, fontWeight: '900', marginBottom: 6 },
+  reviewContent: { color: '#4B5563', fontSize: 13, fontWeight: '700', lineHeight: 19 },
   emptyState: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',

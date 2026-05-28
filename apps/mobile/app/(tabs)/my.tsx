@@ -216,6 +216,14 @@ export default function MyScreen() {
             <InfoRow icon="person" label="닉네임" value={user?.nickname ?? '-'} />
             <InfoRow icon="card" label="회원번호" value={`#${user?.id ?? '-'}`} />
             <InfoRow icon="chatbubble-ellipses-outline" label="거래 문의" value="판매자 1:1 메시지" />
+            <Pressable style={styles.noticeButton} onPress={() => router.push('/legal-notice')}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={palette.ink} />
+              <View style={styles.noticeButtonCopy}>
+                <ThemedText style={styles.noticeButtonTitle}>안전거래 및 중개자 고지</ThemedText>
+                <ThemedText style={styles.noticeButtonText}>거래 전 책임 범위와 신고 기준 확인</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={palette.muted} />
+            </Pressable>
             <Pressable style={styles.logoutButton} onPress={logout}>
               <Ionicons name="log-out-outline" size={18} color={palette.brandDark} />
               <ThemedText style={styles.logoutText}>로그아웃</ThemedText>
@@ -354,6 +362,10 @@ const styles = StyleSheet.create({
   infoIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', marginRight: 10, width: 30 },
   infoLabel: { color: palette.muted, flex: 1, fontSize: 13, fontWeight: '800' },
   infoValue: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  noticeButton: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, flexDirection: 'row', gap: 10, marginTop: 12, padding: 12 },
+  noticeButtonCopy: { flex: 1 },
+  noticeButtonTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  noticeButtonText: { color: palette.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
   logoutButton: { alignItems: 'center', backgroundColor: '#FFF1F2', borderRadius: 8, flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 12, paddingVertical: 12 },
   logoutText: { color: palette.brandDark, fontSize: 14, fontWeight: '900' },
 });

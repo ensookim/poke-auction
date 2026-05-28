@@ -123,6 +123,47 @@ class AuctionServiceTests {
                 .hasMessage("즉시 낙찰가는 시작가보다 커야 합니다.");
     }
 
+    @Test
+    void safePaymentShouldHoldAndReleaseOnReceiptConfirmation() {
+        User seller = userRepository.save(User.builder()
+                .nickname("safe-seller")
+                .provider("KAKAO")
+                .providerId("safe-seller-provider-id")
+                .role("USER")
+                .build());
+
+        User buyer = userRepository.save(User.builder()
+                .nickname("safe-buyer")
+                .provider("KAKAO")
+                .providerId("safe-buyer-provider-id")
+                .role("USER")
+                .build());
+
+        CreateAuctionRequest request = CreateAuctionRequest.builder()
+                .cardName("Safe Card")
+                .startingPrice(1500L)
+                .minimumIncrement(100L)
+                .buyNowPrice(5000L)
+                .durationHours(24)
+                .build();
+
+        AuctionResponse auction = auctionService.createAuction(request, seller.getId());
+        AuctionResponse bought = auctionService.buyNow(auction.getId(), buyer.getId(), null, null, null);
+
+        assertThat(bought.getPaymentStatus()).isEqualTo("PENDING");
+
+        AuctionResponse paid = auctionService.payAuction(bought.getId(), buyer.getId());
+
+        assertThat(paid.getPaymentStatus()).isEqualTo("HELD");
+        assertThat(paid.getPaymentAmount()).isEqualTo(5000L);
+        assertThat(paid.getPaidAt()).isNotNull();
+
+        AuctionResponse confirmed = auctionService.confirmReceived(bought.getId(), buyer.getId());
+
+        assertThat(confirmed.getPaymentStatus()).isEqualTo("RELEASED");
+        assertThat(confirmed.getReleasedAt()).isNotNull();
+    }
+
     private CreateAuctionRequest defaultAuctionRequest() {
         return CreateAuctionRequest.builder()
                 .cardName("루키 카드")

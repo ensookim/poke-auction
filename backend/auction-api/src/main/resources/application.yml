@@ -26,6 +26,9 @@ server:
 
 app:
   mobile-redirect-url: ${APP_MOBILE_REDIRECT_URL:exp://localhost:8081/--/login-success}
+  backend-url: ${APP_BACKEND_URL:http://localhost:8080}
+  payment-success-url: ${APP_PAYMENT_SUCCESS_URL:cardbid://payment-success}
+  payment-fail-url: ${APP_PAYMENT_FAIL_URL:cardbid://payment-fail}
 
 kakao:
   client-id: ${KAKAO_REST_API_KEY}
@@ -37,3 +40,7 @@ jwt:
   secret-key: ${JWT_SECRET_KEY}
   access-token-expiration: 3600
   refresh-token-expiration: 604800
+
+toss:
+  client-key: ${TOSS_CLIENT_KEY:test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm}
+  secret-key: ${TOSS_SECRET_KEY:test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6}

@@ -8,6 +8,7 @@ import com.pokeauction.auction.api.chat.dto.ChatMessageResponse;
 import com.pokeauction.auction.api.chat.dto.ChatRoomResponse;
 import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
 import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
+import com.pokeauction.auction.api.safety.repository.UserBlockRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class ChatService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final UserBlockRepository userBlockRepository;
 
     @Transactional
     public ChatRoomResponse createOrGetRoom(Long auctionId, Long buyerId) {
@@ -36,6 +38,10 @@ public class ChatService {
 
         if (auction.getCreatedBy().getId().equals(buyerId)) {
             throw new IllegalArgumentException("자신의 상품에는 문의할 수 없습니다.");
+        }
+
+        if (isBlockedBetween(auction.getCreatedBy().getId(), buyerId)) {
+            throw new IllegalStateException("차단된 사용자와는 채팅할 수 없습니다.");
         }
 
         User buyer = userRepository.findById(buyerId)
@@ -78,6 +84,10 @@ public class ChatService {
         }
 
         ChatRoom room = getRoomForParticipant(roomId, senderId);
+        if (isBlockedBetween(senderId, room.otherParticipant(senderId).getId())) {
+            throw new IllegalStateException("차단된 사용자와는 메시지를 보낼 수 없습니다.");
+        }
+
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
 
@@ -107,5 +117,13 @@ public class ChatService {
         }
 
         return room;
+    }
+    private boolean isBlockedBetween(Long userId, Long otherUserId) {
+        return userBlockRepository.existsByBlockerIdAndBlockedIdOrBlockerIdAndBlockedId(
+                userId,
+                otherUserId,
+                otherUserId,
+                userId
+        );
     }
 }
