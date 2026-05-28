@@ -54,6 +54,12 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="settings"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="following"
               options={{
                 animation: 'fade_from_bottom',

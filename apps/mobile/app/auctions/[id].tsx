@@ -249,6 +249,7 @@ export default function AuctionDetail() {
       setBidAmount('');
       showToast({
         type: 'success',
+        category: 'bid',
         title: '입찰 완료',
         message: '입찰이 바로 반영됐어요.',
       });

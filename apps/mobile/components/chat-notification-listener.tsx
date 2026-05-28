@@ -37,6 +37,7 @@ export function ChatNotificationListener() {
 
       showToast({
         type: 'info',
+        category: 'chat',
         title: event.message.senderNickname,
         message: event.message.content,
       });

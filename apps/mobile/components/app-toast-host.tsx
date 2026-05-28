@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { AppToastPayload, AppToastType } from '@/services/toastService';
-import appSettingsService from '@/services/appSettingsService';
+import appSettingsService, { ToastSettings } from '@/services/appSettingsService';
 
 const toastMeta: Record<AppToastType, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   success: { icon: 'checkmark-circle', color: '#0F766E' },
@@ -16,7 +16,11 @@ const toastMeta: Record<AppToastType, { icon: keyof typeof Ionicons.glyphMap; co
 export function AppToastHost() {
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<AppToastPayload | null>(null);
-  const [enabled, setEnabled] = useState(true);
+  const [settings, setSettings] = useState<ToastSettings>({
+    all: true,
+    bid: true,
+    chat: true,
+  });
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -34,22 +38,25 @@ export function AppToastHost() {
   };
 
   useEffect(() => {
-    appSettingsService.isToastEnabled().then(setEnabled).catch(() => setEnabled(true));
+    appSettingsService.getToastSettings().then(setSettings).catch(() => null);
 
     const settingsSubscription = DeviceEventEmitter.addListener(
       'appSettingsChanged',
-      (settings: { toastEnabled?: boolean }) => {
-        if (typeof settings.toastEnabled === 'boolean') {
-          setEnabled(settings.toastEnabled);
-          if (!settings.toastEnabled) {
-            hide();
-          }
+      (nextSettings: ToastSettings) => {
+        setSettings(nextSettings);
+        if (!nextSettings.all) {
+          hide();
         }
       },
     );
 
     const subscription = DeviceEventEmitter.addListener('appToast', (payload: AppToastPayload) => {
-      if (!enabled) {
+      const category = payload.category ?? 'system';
+      if (
+        !settings.all ||
+        (category === 'bid' && !settings.bid) ||
+        (category === 'chat' && !settings.chat)
+      ) {
         return;
       }
 
@@ -76,7 +83,7 @@ export function AppToastHost() {
         clearTimeout(timerRef.current);
       }
     };
-  }, [enabled, translateY]);
+  }, [settings, translateY]);
 
   if (!toast) {
     return null;
