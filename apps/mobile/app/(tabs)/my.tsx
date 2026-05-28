@@ -139,6 +139,9 @@ export default function MyScreen() {
             <ThemedText style={styles.eyebrow}>MY</ThemedText>
             <ThemedText type="title" style={styles.title}>내 정보</ThemedText>
           </View>
+          <Pressable style={styles.headerIconButton} onPress={() => router.push('/settings' as any)}>
+            <Ionicons name="settings-outline" size={21} color={palette.ink} />
+          </Pressable>
         </View>
 
         <View style={styles.profileCard}>
@@ -328,7 +331,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.canvas },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 36 },
-  header: { marginBottom: 12 },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  headerIconButton: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, height: 38, justifyContent: 'center', width: 38 },
   eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
   title: { color: palette.ink, fontSize: 30, fontWeight: '900', lineHeight: 36 },
   profileCard: { alignItems: 'center', backgroundColor: palette.night, borderRadius: 8, flexDirection: 'row', marginBottom: 10, padding: 14, ...shadow },
