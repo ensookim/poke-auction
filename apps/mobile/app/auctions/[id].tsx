@@ -206,6 +206,31 @@ export default function AuctionDetail() {
     }
   };
 
+  const requestTossPayment = async (auctionId: number) => {
+    const prepared = await paymentService.prepareAuctionPayment(auctionId);
+    const result = await WebBrowser.openAuthSessionAsync(
+      prepared.checkoutUrl,
+      prepared.successUrl,
+    );
+
+    if (result.type !== 'success') {
+      return null;
+    }
+
+    const parsedUrl = new URL(result.url);
+    const paymentKey = parsedUrl.searchParams.get('paymentKey');
+    const orderId = parsedUrl.searchParams.get('orderId');
+    const amount = Number(parsedUrl.searchParams.get('amount'));
+
+    if (!paymentKey || !orderId || !amount) {
+      Alert.alert('안전결제 실패', '토스 결제 승인 정보를 확인하지 못했습니다.');
+      return null;
+    }
+
+    await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+    return auctionService.getAuction(auctionId);
+  };
+
   const handleBuyNow = async () => {
     if (requireLogin('즉시 낙찰하려면 카카오 로그인이 필요합니다.')) {
       return;
@@ -217,9 +242,15 @@ export default function AuctionDetail() {
 
     try {
       setIsBidding(true);
-      const updated = await auctionService.buyNow(auction.id);
-      setAuction(updated);
+      const bought = await auctionService.buyNow(auction.id);
+      setAuction(bought);
       await chatService.createRoom(auction.id).catch(() => null);
+      const paid = await requestTossPayment(bought.id);
+      if (!paid) {
+        Alert.alert('낙찰 완료', '결제가 완료되지 않았어요. 안전결제 버튼으로 다시 진행할 수 있습니다.');
+        return;
+      }
+      setAuction(paid);
       Alert.alert(
         '낙찰 완료',
         '즉시 낙찰됐어요. 배송정보를 입력하면 판매자와의 채팅으로 자동 전달됩니다.',
