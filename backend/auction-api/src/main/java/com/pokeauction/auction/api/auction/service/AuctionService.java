@@ -6,6 +6,7 @@ import com.pokeauction.auction.api.auction.dto.CreateAuctionRequest;
 import com.pokeauction.auction.api.auction.dto.ShippingInfoRequest;
 import com.pokeauction.auction.api.auction.dto.TrackingInfoRequest;
 import com.pokeauction.auction.api.auction.repository.AuctionRepository;
+import com.pokeauction.auction.api.auction.websocket.AuctionWebSocketHandler;
 import com.pokeauction.auction.api.bid.domain.Bid;
 import com.pokeauction.auction.api.bid.repository.BidRepository;
 import com.pokeauction.auction.api.chat.domain.ChatMessage;
@@ -37,6 +38,7 @@ public class AuctionService {
     private final ChatMessageRepository chatMessageRepository;
     private final WishlistItemRepository wishlistItemRepository;
     private final UserBlockRepository userBlockRepository;
+    private final AuctionWebSocketHandler auctionWebSocketHandler;
 
     @Transactional(readOnly = true)
     public List<AuctionResponse> listAuctions(String category, String sort, boolean activeOnly) {
@@ -126,19 +128,25 @@ public class AuctionService {
         auction.placeBid(bid);
         bidRepository.save(bid);
         Auction saved = auctionRepository.save(auction);
-        return toResponse(saved);
+        AuctionResponse response = toResponse(saved);
+        auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        return response;
     }
 
     @Transactional
     public AuctionResponse buyNow(Long auctionId, Long buyerId, String ipAddress, String deviceId, String userAgent) {
         Auction saved = buyNowInternal(auctionId, buyerId, ipAddress, deviceId, userAgent, false);
-        return toResponse(saved);
+        AuctionResponse response = toResponse(saved);
+        auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        return response;
     }
 
     @Transactional
     public AuctionResponse buyNowWithSafePayment(Long auctionId, Long buyerId, String ipAddress, String deviceId, String userAgent) {
         Auction saved = buyNowInternal(auctionId, buyerId, ipAddress, deviceId, userAgent, true);
-        return toResponse(saved);
+        AuctionResponse response = toResponse(saved);
+        auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        return response;
     }
 
     @Transactional
@@ -152,7 +160,10 @@ public class AuctionService {
 
         auction.markPaymentPending();
         auction.holdPayment();
-        return toResponse(auctionRepository.save(auction));
+        Auction saved = auctionRepository.save(auction);
+        AuctionResponse response = toResponse(saved);
+        auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        return response;
     }
 
     private Auction buyNowInternal(Long auctionId, Long buyerId, String ipAddress, String deviceId, String userAgent, boolean holdPayment) {

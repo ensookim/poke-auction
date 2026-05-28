@@ -36,6 +36,7 @@ import commerceService, {
 import paymentService from '@/services/paymentService';
 import sellerReviewService from '@/services/sellerReviewService';
 import safetyService, { SafetyReportReason } from '@/services/safetyService';
+import auctionRealtimeService from '@/services/auctionRealtimeService';
 
 const reportReasons: { label: string; value: SafetyReportReason }[] = [
   { label: '사기 의심', value: 'FRAUD' },
@@ -139,16 +140,18 @@ export default function AuctionDetail() {
   );
 
   useEffect(() => {
-    if (!id || !auction?.active) {
+    if (!id) {
       return;
     }
 
-    const timer = setInterval(() => {
-      loadAuction(true);
-    }, 5000);
+    const connection = auctionRealtimeService.openAuctionSocket(id, (event) => {
+      if (event.type === 'UPDATED' && event.auction) {
+        applyAuctionUpdate(event.auction);
+      }
+    });
 
-    return () => clearInterval(timer);
-  }, [auction?.active, id, loadAuction]);
+    return () => connection.close();
+  }, [applyAuctionUpdate, id]);
 
   useEffect(() => {
     if (!isSignedIn || !id) {
