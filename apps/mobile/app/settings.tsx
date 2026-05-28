@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -25,8 +24,7 @@ export default function SettingsScreen() {
   }, []);
 
   const updateAll = async (enabled: boolean) => {
-    const next = { ...toastSettings, all: enabled };
-    setToastSettings(next);
+    setToastSettings((prev) => ({ ...prev, all: enabled }));
     await appSettingsService.setToastEnabled(enabled);
     if (enabled) {
       showToast({
@@ -55,15 +53,10 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={palette.ink} />
-          </Pressable>
-          <View>
-            <ThemedText style={styles.eyebrow}>SETTINGS</ThemedText>
-            <ThemedText type="title" style={styles.title}>
-              설정
-            </ThemedText>
-          </View>
+          <ThemedText style={styles.eyebrow}>SETTINGS</ThemedText>
+          <ThemedText type="title" style={styles.title}>
+            설정
+          </ThemedText>
         </View>
 
         <View style={styles.section}>
@@ -144,32 +137,16 @@ const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F5F5', flex: 1 },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
   content: { paddingHorizontal: 20, paddingTop: 8 },
-  header: { alignItems: 'center', flexDirection: 'row', gap: 12, marginBottom: 14 },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
+  header: { marginBottom: 18 },
   eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
   title: { color: palette.ink, fontSize: 28, fontWeight: '900', lineHeight: 34 },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderColor: palette.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 14,
-  },
-  sectionHeader: { marginBottom: 8 },
+  section: { paddingVertical: 2 },
+  sectionHeader: { marginBottom: 10 },
   sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900' },
   sectionText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
   settingRow: {
     alignItems: 'center',
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: 10,
@@ -179,7 +156,6 @@ const styles = StyleSheet.create({
   settingRowDisabled: { opacity: 0.58 },
   settingIcon: {
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
     borderRadius: 8,
     height: 34,
     justifyContent: 'center',

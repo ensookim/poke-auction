@@ -137,12 +137,14 @@ export default function MyScreen() {
         <View style={styles.header}>
           <View>
             <ThemedText style={styles.eyebrow}>MY</ThemedText>
-            <ThemedText type="title" style={styles.title}>내 정보</ThemedText>
+            <ThemedText type="title" style={styles.title}>마이페이지</ThemedText>
           </View>
           <Pressable style={styles.headerIconButton} onPress={() => router.push('/settings' as any)}>
             <Ionicons name="settings-outline" size={21} color={palette.ink} />
           </Pressable>
         </View>
+
+        <ThemedText style={styles.sectionLabel}>내 정보</ThemedText>
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
@@ -219,18 +221,6 @@ export default function MyScreen() {
             <InfoRow icon="person" label="닉네임" value={user?.nickname ?? '-'} />
             <InfoRow icon="card" label="회원번호" value={`#${user?.id ?? '-'}`} />
             <InfoRow icon="chatbubble-ellipses-outline" label="거래 문의" value="판매자 1:1 메시지" />
-            <Pressable style={styles.settingLink} onPress={() => router.push('/settings' as any)}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="settings-outline" size={17} color={palette.muted} />
-              </View>
-              <View style={styles.settingCopy}>
-                <ThemedText style={styles.settingTitle}>설정</ThemedText>
-                <ThemedText style={styles.settingText}>
-                  알림 종류와 앱 표시 방식을 관리해요
-                </ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={17} color={palette.muted} />
-            </Pressable>
             <Pressable style={styles.noticeButton} onPress={() => router.push('/legal-notice')}>
               <Ionicons name="shield-checkmark-outline" size={18} color={palette.ink} />
               <View style={styles.noticeButtonCopy}>
@@ -335,6 +325,7 @@ const styles = StyleSheet.create({
   headerIconButton: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, height: 38, justifyContent: 'center', width: 38 },
   eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
   title: { color: palette.ink, fontSize: 30, fontWeight: '900', lineHeight: 36 },
+  sectionLabel: { color: palette.ink, fontSize: 15, fontWeight: '900', marginBottom: 8 },
   profileCard: { alignItems: 'center', backgroundColor: palette.night, borderRadius: 8, flexDirection: 'row', marginBottom: 10, padding: 14, ...shadow },
   avatar: { alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, height: 48, justifyContent: 'center', marginRight: 12, width: 48 },
   avatarText: { color: palette.ink, fontSize: 20, fontWeight: '900' },
@@ -378,7 +369,6 @@ const styles = StyleSheet.create({
   infoIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', marginRight: 10, width: 30 },
   infoLabel: { color: palette.muted, flex: 1, fontSize: 13, fontWeight: '800' },
   infoValue: { color: palette.ink, fontSize: 13, fontWeight: '900' },
-  settingLink: { alignItems: 'center', borderBottomColor: '#F3F4F6', borderBottomWidth: 1, flexDirection: 'row', gap: 10, paddingVertical: 12 },
   settingIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', width: 30 },
   settingCopy: { flex: 1 },
   settingTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' },
