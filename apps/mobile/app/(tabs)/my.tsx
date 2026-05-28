@@ -6,6 +6,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -27,6 +28,8 @@ import { isAuthSessionExpiredError } from '@/services/apiClient';
 import { getFriendlyErrorMessage } from '@/services/errorUtils';
 import commerceService, { CollectionItemResponse } from '@/services/commerceService';
 import followService, { FollowStats } from '@/services/followService';
+import appSettingsService from '@/services/appSettingsService';
+import { showToast } from '@/services/toastService';
 
 type MyTab = 'listings' | 'bids' | 'won' | 'wishlist' | 'profile';
 
@@ -49,6 +52,7 @@ export default function MyScreen() {
     followerCount: 0,
     followingCount: 0,
   });
+  const [toastEnabled, setToastEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -81,6 +85,25 @@ export default function MyScreen() {
   useEffect(() => {
     if (isSignedIn) loadMyPage();
   }, [isSignedIn, loadMyPage]);
+
+  useEffect(() => {
+    appSettingsService
+      .isToastEnabled()
+      .then(setToastEnabled)
+      .catch(() => setToastEnabled(true));
+  }, []);
+
+  const handleToggleToast = useCallback(async (enabled: boolean) => {
+    setToastEnabled(enabled);
+    await appSettingsService.setToastEnabled(enabled);
+    if (enabled) {
+      showToast({
+        type: 'success',
+        title: '상단 알림 켜짐',
+        message: '앱 안 알림이 위에서 표시됩니다.',
+      });
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -216,6 +239,23 @@ export default function MyScreen() {
             <InfoRow icon="person" label="닉네임" value={user?.nickname ?? '-'} />
             <InfoRow icon="card" label="회원번호" value={`#${user?.id ?? '-'}`} />
             <InfoRow icon="chatbubble-ellipses-outline" label="거래 문의" value="판매자 1:1 메시지" />
+            <View style={styles.settingRow}>
+              <View style={styles.settingIcon}>
+                <Ionicons name="notifications-outline" size={17} color={palette.muted} />
+              </View>
+              <View style={styles.settingCopy}>
+                <ThemedText style={styles.settingTitle}>상단 알림</ThemedText>
+                <ThemedText style={styles.settingText}>
+                  입찰, 채팅 같은 앱 안 알림을 위에서 보여줘요
+                </ThemedText>
+              </View>
+              <Switch
+                value={toastEnabled}
+                onValueChange={handleToggleToast}
+                trackColor={{ false: '#D0D5DD', true: '#BBF7D0' }}
+                thumbColor={toastEnabled ? palette.success : '#FFFFFF'}
+              />
+            </View>
             <Pressable style={styles.noticeButton} onPress={() => router.push('/legal-notice')}>
               <Ionicons name="shield-checkmark-outline" size={18} color={palette.ink} />
               <View style={styles.noticeButtonCopy}>
@@ -362,6 +402,11 @@ const styles = StyleSheet.create({
   infoIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', marginRight: 10, width: 30 },
   infoLabel: { color: palette.muted, flex: 1, fontSize: 13, fontWeight: '800' },
   infoValue: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  settingRow: { alignItems: 'center', borderBottomColor: '#F3F4F6', borderBottomWidth: 1, flexDirection: 'row', gap: 10, paddingVertical: 12 },
+  settingIcon: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 7, height: 30, justifyContent: 'center', width: 30 },
+  settingCopy: { flex: 1 },
+  settingTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  settingText: { color: palette.muted, fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 2 },
   noticeButton: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, flexDirection: 'row', gap: 10, marginTop: 12, padding: 12 },
   noticeButtonCopy: { flex: 1 },
   noticeButtonTitle: { color: palette.ink, fontSize: 13, fontWeight: '900' },

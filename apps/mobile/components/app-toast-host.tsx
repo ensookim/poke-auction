@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { AppToastPayload, AppToastType } from '@/services/toastService';
+import appSettingsService from '@/services/appSettingsService';
 
 const toastMeta: Record<AppToastType, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   success: { icon: 'checkmark-circle', color: '#0F766E' },
@@ -15,6 +16,7 @@ const toastMeta: Record<AppToastType, { icon: keyof typeof Ionicons.glyphMap; co
 export function AppToastHost() {
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<AppToastPayload | null>(null);
+  const [enabled, setEnabled] = useState(true);
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,7 +34,25 @@ export function AppToastHost() {
   };
 
   useEffect(() => {
+    appSettingsService.isToastEnabled().then(setEnabled).catch(() => setEnabled(true));
+
+    const settingsSubscription = DeviceEventEmitter.addListener(
+      'appSettingsChanged',
+      (settings: { toastEnabled?: boolean }) => {
+        if (typeof settings.toastEnabled === 'boolean') {
+          setEnabled(settings.toastEnabled);
+          if (!settings.toastEnabled) {
+            hide();
+          }
+        }
+      },
+    );
+
     const subscription = DeviceEventEmitter.addListener('appToast', (payload: AppToastPayload) => {
+      if (!enabled) {
+        return;
+      }
+
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -51,11 +71,12 @@ export function AppToastHost() {
 
     return () => {
       subscription.remove();
+      settingsSubscription.remove();
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [translateY]);
+  }, [enabled, translateY]);
 
   if (!toast) {
     return null;

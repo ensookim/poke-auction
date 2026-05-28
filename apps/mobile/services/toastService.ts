@@ -1,5 +1,7 @@
 import { DeviceEventEmitter } from 'react-native';
 
+import appSettingsService from '@/services/appSettingsService';
+
 export type AppToastType = 'success' | 'error' | 'info';
 
 export type AppToastPayload = {
@@ -8,6 +10,10 @@ export type AppToastPayload = {
   type?: AppToastType;
 };
 
-export const showToast = (payload: AppToastPayload) => {
+export const showToast = async (payload: AppToastPayload) => {
+  if (!(await appSettingsService.isToastEnabled())) {
+    return;
+  }
+
   DeviceEventEmitter.emit('appToast', payload);
 };
