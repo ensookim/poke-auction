@@ -9,6 +9,7 @@ public class ChatSocketEvent {
 
     private String type;
     private Long roomId;
+    private Long readerId;
     private ChatMessageResponse message;
     private String error;
 
@@ -23,6 +24,14 @@ public class ChatSocketEvent {
         return ChatSocketEvent.builder()
                 .type("JOINED")
                 .roomId(roomId)
+                .build();
+    }
+
+    public static ChatSocketEvent read(Long roomId, Long readerId) {
+        return ChatSocketEvent.builder()
+                .type("READ")
+                .roomId(roomId)
+                .readerId(readerId)
                 .build();
     }
 

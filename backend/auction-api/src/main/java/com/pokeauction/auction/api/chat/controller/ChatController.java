@@ -53,6 +53,19 @@ public class ChatController {
         }
     }
 
+    @PostMapping("/rooms/{roomId}/read")
+    public void markRead(
+            @PathVariable Long roomId,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        try {
+            chatService.markRead(roomId, userId);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, ex.getMessage(), ex);
+        }
+    }
+
     private Long resolveUserId(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");

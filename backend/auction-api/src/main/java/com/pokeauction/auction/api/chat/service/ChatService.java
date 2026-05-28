@@ -8,6 +8,7 @@ import com.pokeauction.auction.api.chat.dto.ChatMessageResponse;
 import com.pokeauction.auction.api.chat.dto.ChatRoomResponse;
 import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
 import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
+import com.pokeauction.auction.api.notification.service.PushNotificationService;
 import com.pokeauction.auction.api.safety.repository.UserBlockRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
@@ -26,6 +27,7 @@ public class ChatService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserBlockRepository userBlockRepository;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public ChatRoomResponse createOrGetRoom(Long auctionId, Long buyerId) {
@@ -67,6 +69,8 @@ public class ChatService {
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long roomId, Long userId) {
         ChatRoom room = getRoomForParticipant(roomId, userId);
+        room.markRead(userId);
+        chatRoomRepository.save(room);
         return chatMessageRepository.findByRoomIdOrderByCreatedAtAsc(room.getId()).stream()
                 .map(ChatMessageResponse::from)
                 .toList();
@@ -100,12 +104,31 @@ public class ChatService {
         room.updateLastMessage(trimmedContent);
         chatRoomRepository.save(room);
 
-        return ChatMessageResponse.from(message);
+        ChatMessageResponse response = ChatMessageResponse.from(message);
+        pushNotificationService.sendChatMessage(
+                room.otherParticipant(senderId).getId(),
+                room.getId(),
+                sender.getNickname(),
+                trimmedContent
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)
     public void assertParticipant(Long roomId, Long userId) {
         getRoomForParticipant(roomId, userId);
+    }
+
+    @Transactional
+    public void markRead(Long roomId, Long userId) {
+        ChatRoom room = getRoomForParticipant(roomId, userId);
+        room.markRead(userId);
+        chatRoomRepository.save(room);
+    }
+
+    @Transactional(readOnly = true)
+    public Long getOtherParticipantId(Long roomId, Long userId) {
+        return getRoomForParticipant(roomId, userId).otherParticipant(userId).getId();
     }
 
     private ChatRoom getRoomForParticipant(Long roomId, Long userId) {

@@ -68,6 +68,7 @@ export default function ChatRoomScreen() {
 
         const socket = await chatService.openSocket(roomId, handleSocketEvent);
         socketRef.current = socket;
+        socket.read();
       } catch (error) {
         Alert.alert('채팅 오류', error instanceof Error ? error.message : '채팅 연결에 실패했습니다.');
       } finally {
@@ -97,6 +98,18 @@ export default function ChatRoomScreen() {
     if (event.type === 'MESSAGE' && event.message) {
       const incoming = event.message;
       setMessages((prev) => (prev.some((message) => message.id === incoming.id) ? prev : [...prev, incoming]));
+      if (incoming.senderId !== user?.id) {
+        socketRef.current?.read();
+      }
+      return;
+    }
+
+    if (event.type === 'READ' && event.readerId !== user?.id) {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.senderId === user?.id ? { ...message, readByOther: true } : message,
+        ),
+      );
       return;
     }
 
@@ -251,7 +264,12 @@ export default function ChatRoomScreen() {
                     ) : null}
                     <View style={styles.bubbleLine}>
                       {mine ? (
-                        <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
+                        <View style={styles.myMessageMeta}>
+                          {message.readByOther ? (
+                            <ThemedText style={styles.readText}>읽음</ThemedText>
+                          ) : null}
+                          <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
+                        </View>
                       ) : null}
                       <View style={[styles.bubble, mine && styles.myBubble]}>
                         <ThemedText style={[styles.messageText, mine && styles.myMessageText]}>
@@ -375,6 +393,8 @@ const styles = StyleSheet.create({
   myBubble: { backgroundColor: '#DBEAFE' },
   messageText: { color: '#111827', fontSize: 14, lineHeight: 19 },
   myMessageText: { color: '#111827' },
+  myMessageMeta: { alignItems: 'flex-end', gap: 2 },
+  readText: { color: '#2563EB', fontSize: 10, fontWeight: '800' },
   timeText: { color: '#98A2B3', fontSize: 10, marginBottom: 2 },
   inputBar: {
     alignItems: 'flex-end',

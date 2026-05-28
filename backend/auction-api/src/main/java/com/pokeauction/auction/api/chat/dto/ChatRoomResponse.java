@@ -21,6 +21,7 @@ public class ChatRoomResponse {
     private String otherUserNickname;
     private String lastMessagePreview;
     private LocalDateTime lastMessageAt;
+    private int unreadCount;
 
     public static ChatRoomResponse from(ChatRoom room, Long currentUserId) {
         User other = room.otherParticipant(currentUserId);
@@ -36,6 +37,17 @@ public class ChatRoomResponse {
                 .otherUserNickname(other.getNickname())
                 .lastMessagePreview(room.getLastMessagePreview())
                 .lastMessageAt(room.getLastMessageAt())
+                .unreadCount(resolveUnreadCount(room, currentUserId))
                 .build();
+    }
+
+    private static int resolveUnreadCount(ChatRoom room, Long currentUserId) {
+        LocalDateTime lastMessageAt = room.getLastMessageAt();
+        if (lastMessageAt == null || room.getLastMessagePreview() == null || room.getLastMessagePreview().isBlank()) {
+            return 0;
+        }
+
+        LocalDateTime readAt = room.readAtFor(currentUserId);
+        return readAt == null || readAt.isBefore(lastMessageAt) ? 1 : 0;
     }
 }

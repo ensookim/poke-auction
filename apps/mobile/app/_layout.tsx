@@ -12,6 +12,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppLoadingScreen } from '@/components/app-loading-screen';
 import { AppToastHost } from '@/components/app-toast-host';
+import { ChatNotificationListener } from '@/components/chat-notification-listener';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -86,6 +87,7 @@ function RootLayoutNav() {
           />
         )}
       </Stack>
+      <ChatNotificationListener />
       <StatusBar style="auto" />
       <AppToastHost />
     </ThemeProvider>

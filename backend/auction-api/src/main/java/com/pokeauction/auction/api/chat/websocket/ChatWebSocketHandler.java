@@ -31,6 +31,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final Map<String, Long> sessionUsers = new ConcurrentHashMap<>();
     private final Map<String, Long> sessionRooms = new ConcurrentHashMap<>();
     private final Map<Long, Set<WebSocketSession>> roomSessions = new ConcurrentHashMap<>();
+    private final Map<Long, Set<WebSocketSession>> userSessions = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -58,10 +59,27 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
 
+            if ("WATCH".equalsIgnoreCase(request.getType())) {
+                userSessions.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet()).add(session);
+                sendToSession(session, ChatSocketEvent.joined(null));
+                return;
+            }
+
             if ("SEND".equalsIgnoreCase(request.getType())) {
                 Long roomId = sessionRooms.getOrDefault(session.getId(), request.getRoomId());
                 ChatMessageResponse message = chatService.sendMessage(roomId, userId, request.getContent());
-                broadcast(roomId, ChatSocketEvent.message(message));
+                ChatSocketEvent event = ChatSocketEvent.message(message);
+                broadcast(roomId, event);
+                broadcastToUser(chatService.getOtherParticipantId(roomId, userId), event);
+                return;
+            }
+
+            if ("READ".equalsIgnoreCase(request.getType())) {
+                Long roomId = sessionRooms.getOrDefault(session.getId(), request.getRoomId());
+                chatService.markRead(roomId, userId);
+                ChatSocketEvent event = ChatSocketEvent.read(roomId, userId);
+                broadcast(roomId, event);
+                broadcastToUser(chatService.getOtherParticipantId(roomId, userId), event);
                 return;
             }
 
@@ -84,6 +102,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             }
         }
         sessionUsers.remove(session.getId());
+        userSessions.values().forEach(sessions -> sessions.remove(session));
     }
 
     private void joinRoom(WebSocketSession session, Long userId, Long roomId) throws IOException {
@@ -108,6 +127,24 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private void broadcast(Long roomId, ChatSocketEvent event) throws IOException {
         Set<WebSocketSession> sessions = roomSessions.get(roomId);
+        if (sessions == null || sessions.isEmpty()) {
+            return;
+        }
+
+        String payload = objectMapper.writeValueAsString(event);
+        for (WebSocketSession session : sessions) {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(payload));
+            }
+        }
+    }
+
+    private void broadcastToUser(Long userId, ChatSocketEvent event) throws IOException {
+        if (userId == null) {
+            return;
+        }
+
+        Set<WebSocketSession> sessions = userSessions.get(userId);
         if (sessions == null || sessions.isEmpty()) {
             return;
         }

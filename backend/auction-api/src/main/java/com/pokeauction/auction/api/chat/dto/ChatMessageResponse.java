@@ -16,6 +16,7 @@ public class ChatMessageResponse {
     private String senderNickname;
     private String content;
     private LocalDateTime createdAt;
+    private boolean readByOther;
 
     public static ChatMessageResponse from(ChatMessage message) {
         return ChatMessageResponse.builder()
@@ -25,6 +26,7 @@ public class ChatMessageResponse {
                 .senderNickname(message.getSender().getNickname())
                 .content(message.getContent())
                 .createdAt(message.getCreatedAt())
+                .readByOther(message.getRoom().isReadByOther(message.getSender().getId(), message.getCreatedAt()))
                 .build();
     }
 }

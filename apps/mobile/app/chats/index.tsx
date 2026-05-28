@@ -155,6 +155,11 @@ export default function ChatRoomsScreen() {
                     {room.lastMessagePreview || '채팅을 시작해보세요.'}
                   </ThemedText>
                 </View>
+                {room.unreadCount > 0 ? (
+                  <View style={styles.unreadBadge}>
+                    <ThemedText style={styles.unreadText}>{room.unreadCount}</ThemedText>
+                  </View>
+                ) : null}
               </Pressable>
             ))}
           </View>
@@ -217,5 +222,15 @@ const styles = StyleSheet.create({
   roomDate: { color: '#98A2B3', fontSize: 12, fontWeight: '700' },
   auctionName: { color: '#EF4444', fontSize: 12, fontWeight: '800', marginTop: 3 },
   preview: { color: '#667085', fontSize: 13, marginTop: 4 },
+  unreadBadge: {
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    borderRadius: 999,
+    height: 22,
+    justifyContent: 'center',
+    minWidth: 22,
+    paddingHorizontal: 7,
+  },
+  unreadText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   pressed: { opacity: 0.62 },
 });
