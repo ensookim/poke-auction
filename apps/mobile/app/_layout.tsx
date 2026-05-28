@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppLoadingScreen } from '@/components/app-loading-screen';
+import { AppToastHost } from '@/components/app-toast-host';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -86,6 +87,7 @@ function RootLayoutNav() {
         )}
       </Stack>
       <StatusBar style="auto" />
+      <AppToastHost />
     </ThemeProvider>
   );
 }

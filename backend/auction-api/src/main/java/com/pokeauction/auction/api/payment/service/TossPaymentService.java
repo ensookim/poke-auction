@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -56,7 +57,9 @@ public class TossPaymentService {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new IllegalArgumentException("Auction not found."));
 
-        if (auction.getWinnerId() == null || !auction.getWinnerId().equals(userId)) {
+        boolean canPayAsWinner = auction.getWinnerId() != null && auction.getWinnerId().equals(userId);
+        boolean canBuyNowWithPayment = auction.getWinnerId() == null && auction.isActive() && auction.hasBuyNow();
+        if (!canPayAsWinner && !canBuyNowWithPayment) {
             throw new IllegalStateException("Only the winning buyer can pay for this auction.");
         }
 
@@ -72,7 +75,7 @@ public class TossPaymentService {
         PaymentOrder order = paymentOrderRepository.save(PaymentOrder.builder()
                 .orderId(orderId)
                 .userId(userId)
-                .amount(auction.getCurrentPrice())
+                .amount(canBuyNowWithPayment ? auction.getBuyNowPrice() : auction.getCurrentPrice())
                 .orderName(orderName)
                 .auctionIds(String.valueOf(auctionId))
                 .status(PaymentOrderStatus.READY)
@@ -212,7 +215,7 @@ public class TossPaymentService {
                     h1 { font-size: 22px; margin: 0 0 6px; }
                     p { margin: 0 0 18px; color: #64748b; line-height: 1.5; }
                     #payment-method, #agreement { background: #fff; border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
-                    button { width: 100%; height: 52px; border: 0; border-radius: 8px; background: #2563eb; color: white; font-size: 16px; font-weight: 800; }
+                    button { width: 100%%; height: 52px; border: 0; border-radius: 8px; background: #2563eb; color: white; font-size: 16px; font-weight: 800; }
                   </style>
                 </head>
                 <body>
@@ -271,12 +274,17 @@ public class TossPaymentService {
                 "amount", request.getAmount()
         );
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                TOSS_CONFIRM_URL,
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                String.class
-        );
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.exchange(
+                    TOSS_CONFIRM_URL,
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, headers),
+                    String.class
+            );
+        } catch (RestClientResponseException ex) {
+            throw new IllegalStateException("Toss payment confirmation failed: " + ex.getResponseBodyAsString(), ex);
+        }
 
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new IllegalStateException("Toss payment confirmation failed.");

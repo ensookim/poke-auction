@@ -124,7 +124,7 @@ export default function SellScreen() {
   const [cardEdition, setCardEdition] =
     useState<(typeof EDITION_OPTIONS)[number]>('일반판');
   const [productType, setProductType] =
-    useState<(typeof PRODUCT_TYPE_OPTIONS)[number]>('단일 카드');
+    useState<(typeof PRODUCT_TYPE_OPTIONS)[number]>('일반 카드');
   const [gradingCompany, setGradingCompany] =
     useState<(typeof GRADING_COMPANIES)[number]>('미감정');
   const [gradeScore, setGradeScore] =
@@ -157,7 +157,7 @@ export default function SellScreen() {
     setCardDescription('');
     setCardRarity('');
     setCardEdition('일반판');
-    setProductType('단일 카드');
+    setProductType('일반 카드');
     setGradingCompany('미감정');
     setGradeScore('10');
     setRawCondition('최상');
@@ -183,7 +183,7 @@ export default function SellScreen() {
   }, [gradeScore, gradingCompany, productType]);
 
   const conditionText = useMemo(() => {
-    if (productType === '팩/박스') {
+    if ((productType === '미개봉 박스' || productType === '팩/부스터')) {
       return '미개봉';
     }
 
@@ -297,8 +297,8 @@ export default function SellScreen() {
       `상품형태: ${productType}`,
       `판본: ${cardEdition}`,
       productType === '감정 카드' ? `감정: ${gradeText}` : null,
-      productType === '팩/박스' ? '실링: 미개봉' : null,
-      productType === '단일 카드' ? `보존상태: ${rawCondition}` : null,
+      (productType === '미개봉 박스' || productType === '팩/부스터') ? '실링: 미개봉' : null,
+      productType === '일반 카드' ? `보존상태: ${rawCondition}` : null,
       `언어: ${cardLanguage}`,
       cardDescription.trim(),
     ].filter(Boolean);
@@ -715,7 +715,7 @@ export default function SellScreen() {
             </View>
           ) : null}
 
-          {productType === '단일 카드' ? (
+          {productType === '일반 카드' ? (
             <View style={styles.optionBlock}>
               <ThemedText style={styles.optionLabel}>보존상태</ThemedText>
               <View style={styles.chipRow}>
@@ -742,7 +742,7 @@ export default function SellScreen() {
             </View>
           ) : null}
 
-          {productType === '팩/박스' ? (
+          {(productType === '미개봉 박스' || productType === '팩/부스터') ? (
             <View style={styles.sealedNotice}>
               <Ionicons name="cube-outline" size={17} color={palette.success} />
               <ThemedText style={styles.sealedNoticeText}>

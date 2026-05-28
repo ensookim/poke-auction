@@ -37,6 +37,7 @@ import paymentService from '@/services/paymentService';
 import sellerReviewService from '@/services/sellerReviewService';
 import safetyService, { SafetyReportReason } from '@/services/safetyService';
 import auctionRealtimeService from '@/services/auctionRealtimeService';
+import { showToast } from '@/services/toastService';
 
 const reportReasons: { label: string; value: SafetyReportReason }[] = [
   { label: '사기 의심', value: 'FRAUD' },
@@ -246,7 +247,11 @@ export default function AuctionDetail() {
       const updated = await auctionService.placeBid(auction.id, amount);
       applyAuctionUpdate(updated);
       setBidAmount('');
-      Alert.alert('입찰 완료', '입찰이 정상적으로 반영되었습니다.');
+      showToast({
+        type: 'success',
+        title: '입찰 완료',
+        message: '입찰이 바로 반영됐어요.',
+      });
     } catch (error) {
       if (await handleSessionExpired(error)) {
         return;
@@ -293,14 +298,12 @@ export default function AuctionDetail() {
 
     try {
       setIsBidding(true);
-      const bought = await auctionService.buyNow(auction.id);
-      applyAuctionUpdate(bought);
-      await chatService.createRoom(auction.id).catch(() => null);
-      const paid = await requestTossPayment(bought.id);
+      const paid = await requestTossPayment(auction.id);
       if (!paid) {
-        Alert.alert('낙찰 완료', '결제가 완료되지 않았어요. 안전결제 버튼으로 다시 진행할 수 있습니다.');
+        Alert.alert('결제 취소', '결제가 완료되지 않았어요. 낙찰은 반영되지 않았습니다.');
         return;
       }
+      await chatService.createRoom(auction.id).catch(() => null);
       applyAuctionUpdate(paid);
       Alert.alert(
         '낙찰 완료',
@@ -698,35 +701,6 @@ export default function AuctionDetail() {
           />
         </View>
 
-        <Animated.View style={[styles.priceBoard, priceBoardAnimatedStyle]}>
-          <View style={styles.priceBlock}>
-            <ThemedText style={styles.metricLabel}>현재가</ThemedText>
-            <Animated.Text style={[styles.currentPrice, priceTextAnimatedStyle]}>
-              {formatPrice(auction.currentPrice)}
-            </Animated.Text>
-          </View>
-          <View style={styles.metricGrid}>
-            <View style={styles.metricBox}>
-              <ThemedText style={styles.metricLabel}>입찰</ThemedText>
-              <ThemedText style={styles.metricValue}>{auction.bidCount}회</ThemedText>
-            </View>
-            <View style={styles.metricBox}>
-              <ThemedText style={styles.metricLabel}>입찰 단위</ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatPrice(auction.minimumIncrement)}
-              </ThemedText>
-            </View>
-          </View>
-          {auction.buyNowPrice ? (
-            <View style={styles.buyNowLine}>
-              <Ionicons name="flash" size={16} color={palette.brandDark} />
-              <ThemedText style={styles.buyNowLineText}>
-                즉시 낙찰가 {formatPrice(auction.buyNowPrice)}
-              </ThemedText>
-            </View>
-          ) : null}
-        </Animated.View>
-
         <View style={styles.summary}>
           <View style={styles.summaryTop}>
             <View style={[styles.categoryPill, { backgroundColor: category.background }]}>
@@ -787,6 +761,35 @@ export default function AuctionDetail() {
             ) : null}
           </View>
         </View>
+
+        <Animated.View style={[styles.priceBoard, priceBoardAnimatedStyle]}>
+          <View style={styles.priceBlock}>
+            <ThemedText style={styles.metricLabel}>현재가</ThemedText>
+            <Animated.Text style={[styles.currentPrice, priceTextAnimatedStyle]}>
+              {formatPrice(auction.currentPrice)}
+            </Animated.Text>
+          </View>
+          <View style={styles.metricGrid}>
+            <View style={styles.metricBox}>
+              <ThemedText style={styles.metricLabel}>입찰</ThemedText>
+              <ThemedText style={styles.metricValue}>{auction.bidCount}회</ThemedText>
+            </View>
+            <View style={styles.metricBox}>
+              <ThemedText style={styles.metricLabel}>입찰 단위</ThemedText>
+              <ThemedText style={styles.metricValue}>
+                {formatPrice(auction.minimumIncrement)}
+              </ThemedText>
+            </View>
+          </View>
+          {auction.buyNowPrice ? (
+            <View style={styles.buyNowLine}>
+              <Ionicons name="flash" size={16} color={palette.brandDark} />
+              <ThemedText style={styles.buyNowLineText}>
+                즉시 낙찰가 {formatPrice(auction.buyNowPrice)}
+              </ThemedText>
+            </View>
+          ) : null}
+        </Animated.View>
 
         <View style={styles.collectionPanel}>
           <Pressable
@@ -1279,13 +1282,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 12,
-    padding: 18,
+    padding: 14,
   },
   summaryTop: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   categoryPill: {
     alignItems: 'center',
@@ -1306,23 +1309,23 @@ const styles = StyleSheet.create({
   },
   title: {
     color: palette.ink,
-    fontSize: 27,
+    fontSize: 23,
     fontWeight: '900',
-    lineHeight: 33,
-    marginBottom: 10,
+    lineHeight: 29,
+    marginBottom: 8,
   },
   description: {
     color: '#4B5563',
     fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 16,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   sellerRow: {
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
     borderRadius: 8,
     flexDirection: 'row',
-    padding: 12,
+    padding: 10,
   },
   sellerProfileButton: {
     alignItems: 'center',

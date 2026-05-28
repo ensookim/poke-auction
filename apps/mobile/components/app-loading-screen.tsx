@@ -11,7 +11,7 @@ type AppLoadingScreenProps = {
 
 export function AppLoadingScreen({
   title = 'CardBid',
-  message = '경매장을 준비하고 있어요',
+  message = '실시간 경매장을 준비하고 있어요',
 }: AppLoadingScreenProps) {
   const pulse = useRef(new Animated.Value(0)).current;
 

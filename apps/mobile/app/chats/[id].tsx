@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  myBubble: { backgroundColor: '#FEE500' },
+  myBubble: { backgroundColor: '#DBEAFE' },
   messageText: { color: '#111827', fontSize: 14, lineHeight: 19 },
   myMessageText: { color: '#111827' },
   timeText: { color: '#98A2B3', fontSize: 10, marginBottom: 2 },

@@ -88,28 +88,15 @@ export const TRUST_BADGES = [
   { icon: 'time', label: '마감 알림' },
 ] as const;
 
-export const PRODUCT_TYPE_OPTIONS = ['단일 카드', '감정 카드', '팩/박스'] as const;
+export const PRODUCT_TYPE_OPTIONS = ['일반 카드', '감정 카드', '미개봉 박스', '팩/부스터', '세트', '기타', '해당없음'] as const;
 
-export const RAW_CONDITION_OPTIONS = ['최상', '상', '중', '하'] as const;
+export const RAW_CONDITION_OPTIONS = ['해당없음', '미개봉', '최상', '상', '중상', '중', '하', '손상 있음'] as const;
 
-export const LANGUAGE_OPTIONS = ['한국어', '일본어', '영어', '기타'] as const;
+export const LANGUAGE_OPTIONS = ['해당없음', '한국어', '일본어', '영어', '중국어', '기타'] as const;
 
-export const EDITION_OPTIONS = [
-  '일반판',
-  '한정판',
-  '프로모',
-  '시크릿/레어',
-  '사인/넘버드',
-] as const;
+export const EDITION_OPTIONS = ['해당없음', '일반판', '초판', '한정판', '프로모', '시크릿 레어', '사인/넘버링', '리프린트', '기타'] as const;
 
-export const GRADING_COMPANIES = [
-  '미감정',
-  'PSA',
-  'BGS',
-  'CGC',
-  'ARS',
-  '기타',
-] as const;
+export const GRADING_COMPANIES = ['해당없음', '미감정', 'PSA', 'BGS', 'CGC', 'ARS', 'SGC', 'ACE', '기타'] as const;
 
 export const GRADE_SCORES = [
   '10',
