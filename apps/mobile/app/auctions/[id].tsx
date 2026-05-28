@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Pressable,
   ScrollView,
   Share,
@@ -72,25 +73,60 @@ export default function AuctionDetail() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const lastPriceRef = useRef<number | null>(null);
+  const priceFlash = useRef(new Animated.Value(0)).current;
 
-  const loadAuction = useCallback(async () => {
+  const flashPrice = useCallback(() => {
+    priceFlash.stopAnimation();
+    priceFlash.setValue(0);
+    Animated.sequence([
+      Animated.timing(priceFlash, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: false,
+      }),
+      Animated.timing(priceFlash, {
+        toValue: 0,
+        duration: 650,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [priceFlash]);
+
+  const applyAuctionUpdate = useCallback(
+    (data: AuctionResponse, animatePrice = true) => {
+      const previousPrice = lastPriceRef.current;
+      if (
+        animatePrice &&
+        previousPrice !== null &&
+        data.currentPrice > previousPrice
+      ) {
+        flashPrice();
+      }
+      lastPriceRef.current = data.currentPrice;
+      setAuction(data);
+    },
+    [flashPrice],
+  );
+
+  const loadAuction = useCallback(async (silent = false) => {
     if (!id) {
       return;
     }
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const data = await auctionService.getAuction(id);
-      setAuction(data);
+      applyAuctionUpdate(data, silent);
     } catch (error) {
-      Alert.alert(
+      if (!silent) Alert.alert(
         '경매 조회 오류',
         error instanceof Error ? error.message : '경매를 불러오지 못했습니다.',
       );
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, [id]);
+  }, [applyAuctionUpdate, id]);
 
   useEffect(() => {
     loadAuction();
@@ -101,6 +137,18 @@ export default function AuctionDetail() {
       loadAuction();
     }, [loadAuction]),
   );
+
+  useEffect(() => {
+    if (!id || !auction?.active) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      loadAuction(true);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [auction?.active, id, loadAuction]);
 
   useEffect(() => {
     if (!isSignedIn || !id) {
@@ -193,7 +241,7 @@ export default function AuctionDetail() {
     try {
       setIsBidding(true);
       const updated = await auctionService.placeBid(auction.id, amount);
-      setAuction(updated);
+      applyAuctionUpdate(updated);
       setBidAmount('');
       Alert.alert('입찰 완료', '입찰이 정상적으로 반영되었습니다.');
     } catch (error) {
@@ -243,14 +291,14 @@ export default function AuctionDetail() {
     try {
       setIsBidding(true);
       const bought = await auctionService.buyNow(auction.id);
-      setAuction(bought);
+      applyAuctionUpdate(bought);
       await chatService.createRoom(auction.id).catch(() => null);
       const paid = await requestTossPayment(bought.id);
       if (!paid) {
         Alert.alert('낙찰 완료', '결제가 완료되지 않았어요. 안전결제 버튼으로 다시 진행할 수 있습니다.');
         return;
       }
-      setAuction(paid);
+      applyAuctionUpdate(paid);
       Alert.alert(
         '낙찰 완료',
         '즉시 낙찰됐어요. 배송정보를 입력하면 판매자와의 채팅으로 자동 전달됩니다.',
@@ -298,7 +346,7 @@ export default function AuctionDetail() {
 
       await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
       const updated = await auctionService.getAuction(auction.id);
-      setAuction(updated);
+      applyAuctionUpdate(updated);
       Alert.alert('안전결제 완료', '결제 금액이 구매확정 전까지 안전하게 보관됩니다.');
     } catch (error) {
       if (await handleSessionExpired(error)) {
@@ -410,11 +458,19 @@ export default function AuctionDetail() {
       return;
     }
 
+    const shareUrl = `cardbid://auctions/${auction.id}`;
     await Share.share({
-      message: `${auction.cardName} 경매 진행중: 현재가 ${formatPrice(
-        auction.currentPrice,
-      )}`,
-      title: auction.cardName,
+      message: [
+        `${auction.cardName}`,
+        `현재가 ${formatPrice(auction.currentPrice)}`,
+        `남은 시간 ${formatRemainingTime(auction.endAt)}`,
+        auction.imageUrl ? `이미지 ${auction.imageUrl}` : null,
+        shareUrl,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      title: `${auction.cardName} 경매`,
+      url: shareUrl,
     });
   };
 
@@ -578,6 +634,22 @@ export default function AuctionDetail() {
   const isPaymentHeld = auction.paymentStatus === 'HELD';
   const isPaymentReleased = auction.paymentStatus === 'RELEASED';
   const needsPayment = isWinner && !isPaymentHeld && !isPaymentReleased;
+  const priceBoardAnimatedStyle = {
+    backgroundColor: priceFlash.interpolate({
+      inputRange: [0, 1],
+      outputRange: [palette.night, '#1F7A4D'],
+    }),
+    borderColor: priceFlash.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['rgba(255,255,255,0)', '#86EFAC'],
+    }),
+  };
+  const priceTextAnimatedStyle = {
+    color: priceFlash.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['#FFFFFF', '#BBF7D0'],
+    }),
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -591,13 +663,7 @@ export default function AuctionDetail() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
-          <Pressable style={styles.iconButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={palette.ink} />
-          </Pressable>
           <View style={styles.topActions}>
-            <Pressable style={styles.iconButton} onPress={loadAuction}>
-              <Ionicons name="refresh" size={19} color={palette.ink} />
-            </Pressable>
             <Pressable style={styles.iconButton} onPress={handleShare}>
               <Ionicons name="share-outline" size={19} color={palette.ink} />
             </Pressable>
@@ -628,6 +694,35 @@ export default function AuctionDetail() {
             transition={180}
           />
         </View>
+
+        <Animated.View style={[styles.priceBoard, priceBoardAnimatedStyle]}>
+          <View style={styles.priceBlock}>
+            <ThemedText style={styles.metricLabel}>현재가</ThemedText>
+            <Animated.Text style={[styles.currentPrice, priceTextAnimatedStyle]}>
+              {formatPrice(auction.currentPrice)}
+            </Animated.Text>
+          </View>
+          <View style={styles.metricGrid}>
+            <View style={styles.metricBox}>
+              <ThemedText style={styles.metricLabel}>입찰</ThemedText>
+              <ThemedText style={styles.metricValue}>{auction.bidCount}회</ThemedText>
+            </View>
+            <View style={styles.metricBox}>
+              <ThemedText style={styles.metricLabel}>입찰 단위</ThemedText>
+              <ThemedText style={styles.metricValue}>
+                {formatPrice(auction.minimumIncrement)}
+              </ThemedText>
+            </View>
+          </View>
+          {auction.buyNowPrice ? (
+            <View style={styles.buyNowLine}>
+              <Ionicons name="flash" size={16} color={palette.brandDark} />
+              <ThemedText style={styles.buyNowLineText}>
+                즉시 낙찰가 {formatPrice(auction.buyNowPrice)}
+              </ThemedText>
+            </View>
+          ) : null}
+        </Animated.View>
 
         <View style={styles.summary}>
           <View style={styles.summaryTop}>
@@ -736,35 +831,6 @@ export default function AuctionDetail() {
               {collectionStatus?.inCart ? '담김' : '장바구니'}
             </ThemedText>
           </Pressable>
-        </View>
-
-        <View style={styles.priceBoard}>
-          <View style={styles.priceBlock}>
-            <ThemedText style={styles.metricLabel}>현재가</ThemedText>
-            <ThemedText style={styles.currentPrice}>
-              {formatPrice(auction.currentPrice)}
-            </ThemedText>
-          </View>
-          <View style={styles.metricGrid}>
-            <View style={styles.metricBox}>
-              <ThemedText style={styles.metricLabel}>입찰</ThemedText>
-              <ThemedText style={styles.metricValue}>{auction.bidCount}회</ThemedText>
-            </View>
-            <View style={styles.metricBox}>
-              <ThemedText style={styles.metricLabel}>입찰 단위</ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatPrice(auction.minimumIncrement)}
-              </ThemedText>
-            </View>
-          </View>
-          {auction.buyNowPrice ? (
-            <View style={styles.buyNowLine}>
-              <Ionicons name="flash" size={16} color={palette.brandDark} />
-              <ThemedText style={styles.buyNowLineText}>
-                즉시 낙찰가 {formatPrice(auction.buyNowPrice)}
-              </ThemedText>
-            </View>
-          ) : null}
         </View>
 
         {auction.active ? (
@@ -1145,7 +1211,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 14,
   },
   topActions: {
@@ -1339,6 +1405,7 @@ const styles = StyleSheet.create({
   },
   priceBoard: {
     backgroundColor: palette.night,
+    borderWidth: 1,
     borderRadius: 8,
     marginBottom: 12,
     padding: 18,
