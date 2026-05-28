@@ -77,9 +77,23 @@ class ChatService {
       token,
     )}`;
     const socket = new WebSocket(wsUrl);
+    const pendingMessages: string[] = [];
+
+    const sendPayload = (payload: unknown) => {
+      const serialized = JSON.stringify(payload);
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(serialized);
+        return;
+      }
+
+      pendingMessages.push(serialized);
+    };
 
     socket.onopen = () => {
       socket.send(JSON.stringify({ type: 'JOIN', roomId }));
+      while (pendingMessages.length > 0) {
+        socket.send(pendingMessages.shift() as string);
+      }
     };
 
     socket.onmessage = (event) => {
@@ -92,12 +106,13 @@ class ChatService {
 
     return {
       send(content: string) {
-        socket.send(JSON.stringify({ type: 'SEND', roomId, content }));
+        sendPayload({ type: 'SEND', roomId, content });
       },
       read() {
-        socket.send(JSON.stringify({ type: 'READ', roomId }));
+        sendPayload({ type: 'READ', roomId });
       },
       close() {
+        pendingMessages.length = 0;
         socket.close();
       },
     };
