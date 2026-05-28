@@ -262,63 +262,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <View>
-            <ThemedText style={styles.sectionEyebrow}>NEW ARRIVALS</ThemedText>
-            <ThemedText style={styles.sectionTitle}>전체 상품</ThemedText>
-          </View>
-          <Pressable style={styles.sectionMoreButton} onPress={() => router.push('/buy')}>
-            <ThemedText style={styles.linkText}>더보기</ThemedText>
-          </Pressable>
-        </View>
-
-        {recentAuctions.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <ThemedText style={styles.emptyTitle}>상품이 아직 없어요</ThemedText>
-            <ThemedText style={styles.emptyText}>첫 경매를 등록해보세요.</ThemedText>
-          </View>
-        ) : (
-          <View style={styles.grid}>
-            {recentAuctions.map((auction) => {
-              const category = getCategoryMeta(auction.cardCategory);
-              return (
-                <Pressable key={auction.id} style={styles.gridCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
-                  <View style={styles.gridImageFrame}>
-                    <Image source={{ uri: auction.imageUrl }} style={styles.gridImage} contentFit="cover" transition={160} />
-                  </View>
-                  <View style={styles.gridBody}>
-                    <View style={styles.gridMetaRow}>
-                      <ThemedText style={[styles.gridCategory, { color: category.tint }]}>{category.label}</ThemedText>
-                      <ThemedText style={styles.gridTime}>{formatRemainingTime(auction.endAt)}</ThemedText>
-                    </View>
-                    <ThemedText style={styles.gridTitle} numberOfLines={2}>{auction.cardName}</ThemedText>
-                    <View style={styles.gridFooter}>
-                      <ThemedText style={styles.gridPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
-                      <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
-                    </View>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
-        <View style={styles.trendGrid}>
-          <TrendPanel
-            icon="flame"
-            title="입찰 많은 순"
-            subtitle="많은 사람들이 경매에 참여중이에요"
-            auctions={mostBidAuctions}
-            metric={(auction) => `${auction.bidCount}명 참여`}
-          />
-          <TrendPanel
-            icon="heart"
-            title="찜 많은 순"
-            subtitle="컬렉터들이 많이 찜했어요"
-            auctions={mostWishedAuctions}
-            metric={(auction) => `${auction.wishlistCount ?? 0}찜`}
-          />
-        </View>
 
         <View style={styles.sectionHeader}>
           <View>
@@ -431,6 +374,63 @@ export default function HomeScreen() {
             </ScrollView>
           </>
         ) : null}
+        <View style={styles.sectionHeader}>
+          <View>
+            <ThemedText style={styles.sectionEyebrow}>NEW ARRIVALS</ThemedText>
+            <ThemedText style={styles.sectionTitle}>전체 상품</ThemedText>
+          </View>
+          <Pressable style={styles.sectionMoreButton} onPress={() => router.push('/buy')}>
+            <ThemedText style={styles.linkText}>더보기</ThemedText>
+          </Pressable>
+        </View>
+
+        {recentAuctions.length === 0 ? (
+          <View style={styles.emptyBlock}>
+            <ThemedText style={styles.emptyTitle}>상품이 아직 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>첫 경매를 등록해보세요.</ThemedText>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {recentAuctions.map((auction) => {
+              const category = getCategoryMeta(auction.cardCategory);
+              return (
+                <Pressable key={auction.id} style={styles.gridCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
+                  <View style={styles.gridImageFrame}>
+                    <Image source={{ uri: auction.imageUrl }} style={styles.gridImage} contentFit="cover" transition={160} />
+                  </View>
+                  <View style={styles.gridBody}>
+                    <View style={styles.gridMetaRow}>
+                      <ThemedText style={[styles.gridCategory, { color: category.tint }]}>{category.label}</ThemedText>
+                      <ThemedText style={styles.gridTime}>{formatRemainingTime(auction.endAt)}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.gridTitle} numberOfLines={2}>{auction.cardName}</ThemedText>
+                    <View style={styles.gridFooter}>
+                      <ThemedText style={styles.gridPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
+                      <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        <View style={styles.trendGrid}>
+          <TrendPanel
+            icon="flame"
+            title="입찰 많은 순"
+            subtitle="많은 사람들이 경매에 참여중이에요"
+            auctions={mostBidAuctions}
+            metric={(auction) => `${auction.bidCount}명 참여`}
+          />
+          <TrendPanel
+            icon="heart"
+            title="찜 많은 순"
+            subtitle="컬렉터들이 많이 찜했어요"
+            auctions={mostWishedAuctions}
+            metric={(auction) => `${auction.wishlistCount ?? 0}찜`}
+          />
+        </View>
 
         <ScrollView
           ref={tabPagerRef}

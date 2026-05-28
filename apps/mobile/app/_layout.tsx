@@ -32,7 +32,7 @@ function RootLayoutNav() {
           animation: 'fade_from_bottom',
           animationDuration: 220,
           gestureEnabled: true,
-          fullScreenGestureEnabled: true,
+          fullScreenGestureEnabled: false,
         }}
       >
         {isSignedIn ? (
