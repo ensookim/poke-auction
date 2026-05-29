@@ -204,6 +204,11 @@ class AuthService {
     return response.data;
   }
 
+  async withdraw(): Promise<void> {
+    await this.client.delete('/api/auth/me');
+    await this.clearTokens();
+  }
+
   /**
    * 사용자 정보 저장
    */

@@ -71,6 +71,15 @@ public class AuthController {
         }
     }
 
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        authService.withdraw(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/kakao/callback")
     public void kakaoCallback(
             @RequestParam String code,

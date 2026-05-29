@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Modal,
   Pressable,
   ScrollView,
   Share,
@@ -75,6 +76,7 @@ export default function AuctionDetail() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false);
   const lastPriceRef = useRef<number | null>(null);
   const priceFlash = useRef(new Animated.Value(0)).current;
 
@@ -641,6 +643,44 @@ export default function AuctionDetail() {
   const isPaymentHeld = auction.paymentStatus === 'HELD';
   const isPaymentReleased = auction.paymentStatus === 'RELEASED';
   const needsPayment = isWinner && !isPaymentHeld && !isPaymentReleased;
+  const tradeTimeline = [
+    {
+      label: '경매 등록',
+      done: true,
+      detail: new Date(auction.createdAt).toLocaleDateString(),
+    },
+    {
+      label: '낙찰 확정',
+      done: Boolean(auction.winnerId),
+      active: !auction.active && Boolean(auction.winnerId) && auction.paymentStatus === 'NONE',
+      detail: auction.winnerId ? '낙찰자 확정' : '경매 진행 중',
+    },
+    {
+      label: '안전결제',
+      done: isPaymentHeld || isPaymentReleased,
+      active: needsPayment,
+      detail: isPaymentHeld || isPaymentReleased ? '결제 보관 중' : '결제 대기',
+    },
+    {
+      label: '송장 등록',
+      done: Boolean(auction.trackingNumber),
+      active: isPaymentHeld && !auction.trackingNumber,
+      detail: auction.trackingNumber
+        ? `${auction.shippingCompany || '택배'} ${auction.trackingNumber}`
+        : '배송 준비',
+    },
+    {
+      label: '구매확정',
+      done: auction.receivedConfirmed,
+      active: Boolean(auction.trackingNumber) && !auction.receivedConfirmed,
+      detail: auction.receivedConfirmed ? '수령 확인 완료' : '수령 확인 대기',
+    },
+    {
+      label: '정산 완료',
+      done: isPaymentReleased,
+      detail: isPaymentReleased ? '판매자 정산 완료' : '정산 대기',
+    },
+  ];
   const priceBoardAnimatedStyle = {
     backgroundColor: priceFlash.interpolate({
       inputRange: [0, 1],
@@ -694,12 +734,14 @@ export default function AuctionDetail() {
             </ThemedText>
           </View>
           <ThemedText style={styles.artMark}>{auction.cardName.slice(0, 2)}</ThemedText>
-          <Image
-            source={{ uri: auction.imageUrl }}
-            style={styles.cardImage}
-            contentFit="cover"
-            transition={180}
-          />
+          <Pressable style={styles.imagePressable} onPress={() => setIsImagePreviewVisible(true)}>
+            <Image
+              source={{ uri: auction.imageUrl }}
+              style={styles.cardImage}
+              contentFit="cover"
+              transition={180}
+            />
+          </Pressable>
         </View>
 
         <View style={styles.summary}>
@@ -791,6 +833,42 @@ export default function AuctionDetail() {
             </View>
           ) : null}
         </Animated.View>
+
+        <View style={styles.timelinePanel}>
+          <View style={styles.shippingHeader}>
+            <Ionicons name="git-branch-outline" size={19} color={palette.brand} />
+            <ThemedText style={styles.panelTitle}>거래 상태</ThemedText>
+          </View>
+          <View style={styles.timelineList}>
+            {tradeTimeline.map((step, index) => (
+              <View key={step.label} style={styles.timelineItem}>
+                <View style={styles.timelineRail}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      step.done && styles.timelineDotDone,
+                      step.active && styles.timelineDotActive,
+                    ]}
+                  >
+                    {step.done ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
+                  </View>
+                  {index < tradeTimeline.length - 1 ? <View style={styles.timelineLine} /> : null}
+                </View>
+                <View style={styles.timelineCopy}>
+                  <ThemedText
+                    style={[
+                      styles.timelineTitle,
+                      (step.done || step.active) && styles.timelineTitleActive,
+                    ]}
+                  >
+                    {step.label}
+                  </ThemedText>
+                  <ThemedText style={styles.timelineText}>{step.detail}</ThemedText>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
 
         <View style={styles.collectionPanel}>
           <Pressable
@@ -1192,6 +1270,14 @@ export default function AuctionDetail() {
           )}
         </View>
       </ScrollView>
+      <Modal visible={isImagePreviewVisible} transparent animationType="fade">
+        <View style={styles.previewBackdrop}>
+          <Pressable style={styles.previewClose} onPress={() => setIsImagePreviewVisible(false)}>
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </Pressable>
+          <Image source={{ uri: auction.imageUrl }} style={styles.previewImage} contentFit="contain" />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1276,6 +1362,11 @@ const styles = StyleSheet.create({
     aspectRatio: 0.72,
     position: 'relative',
     width: '100%',
+  },
+  imagePressable: {
+    aspectRatio: 0.72,
+    width: '100%',
+    zIndex: 2,
   },
   summary: {
     backgroundColor: palette.surface,
@@ -1383,6 +1474,32 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
+  timelinePanel: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 16,
+  },
+  timelineList: { marginTop: 12 },
+  timelineItem: { flexDirection: 'row', minHeight: 52 },
+  timelineRail: { alignItems: 'center', width: 24 },
+  timelineDot: {
+    alignItems: 'center',
+    backgroundColor: '#D0D5DD',
+    borderRadius: 999,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  timelineDotDone: { backgroundColor: palette.success },
+  timelineDotActive: { backgroundColor: palette.brand },
+  timelineLine: { backgroundColor: '#E5E7EB', flex: 1, width: 2 },
+  timelineCopy: { flex: 1, paddingBottom: 14, paddingLeft: 8 },
+  timelineTitle: { color: palette.muted, fontSize: 13, fontWeight: '900' },
+  timelineTitleActive: { color: palette.ink },
+  timelineText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   collectionButton: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -1792,4 +1909,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  previewBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+  },
+  previewClose: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 16,
+    top: 42,
+    width: 44,
+    zIndex: 2,
+  },
+  previewImage: { height: '82%', width: '100%' },
 });

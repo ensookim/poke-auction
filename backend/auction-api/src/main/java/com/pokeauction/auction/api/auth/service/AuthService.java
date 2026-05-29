@@ -43,7 +43,7 @@ public class AuthService {
         User user = userRepository.findByProviderAndProviderId(provider, providerId).orElse(null);
         boolean isNewUser = false;
 
-        if (user == null) {
+        if (user == null || user.isWithdrawn()) {
             isNewUser = true;
             user = userRepository.save(
                     User.builder()
@@ -121,6 +121,13 @@ public class AuthService {
                 .nickname(user.getNickname())
                 .isNewUser(false)
                 .build();
+    }
+
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
+        user.withdraw();
     }
 
     private String normalizeNickname(String nickname) {

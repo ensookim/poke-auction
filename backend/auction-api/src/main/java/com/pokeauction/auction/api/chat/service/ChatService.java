@@ -77,9 +77,10 @@ public class ChatService {
     }
 
     @Transactional
-    public ChatMessageResponse sendMessage(Long roomId, Long senderId, String content) {
+    public ChatMessageResponse sendMessage(Long roomId, Long senderId, String content, String imageUrl) {
         String trimmedContent = content == null ? "" : content.trim();
-        if (trimmedContent.isEmpty()) {
+        String trimmedImageUrl = imageUrl == null ? "" : imageUrl.trim();
+        if (trimmedContent.isEmpty() && trimmedImageUrl.isEmpty()) {
             throw new IllegalArgumentException("메시지를 입력해주세요.");
         }
 
@@ -98,10 +99,12 @@ public class ChatService {
         ChatMessage message = chatMessageRepository.save(ChatMessage.builder()
                 .room(room)
                 .sender(sender)
-                .content(trimmedContent)
+                .content(trimmedContent.isEmpty() ? "사진" : trimmedContent)
+                .imageUrl(trimmedImageUrl.isEmpty() ? null : trimmedImageUrl)
                 .build());
 
-        room.updateLastMessage(trimmedContent);
+        String preview = trimmedImageUrl.isEmpty() ? trimmedContent : "사진을 보냈어요.";
+        room.updateLastMessage(preview);
         chatRoomRepository.save(room);
 
         ChatMessageResponse response = ChatMessageResponse.from(message);
@@ -109,7 +112,7 @@ public class ChatService {
                 room.otherParticipant(senderId).getId(),
                 room.getId(),
                 sender.getNickname(),
-                trimmedContent
+                preview
         );
         return response;
     }

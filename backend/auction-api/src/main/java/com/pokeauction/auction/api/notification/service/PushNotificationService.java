@@ -1,6 +1,9 @@
 package com.pokeauction.auction.api.notification.service;
 
 import com.pokeauction.auction.api.notification.domain.UserPushToken;
+import com.pokeauction.auction.api.notification.domain.AppNotification;
+import com.pokeauction.auction.api.notification.dto.AppNotificationResponse;
+import com.pokeauction.auction.api.notification.repository.AppNotificationRepository;
 import com.pokeauction.auction.api.notification.repository.UserPushTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
@@ -18,6 +21,7 @@ public class PushNotificationService {
     private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
     private final UserPushTokenRepository userPushTokenRepository;
+    private final AppNotificationRepository appNotificationRepository;
     private final RestTemplate restTemplate;
 
     public void registerToken(Long userId, String token, String platform) {
@@ -34,6 +38,15 @@ public class PushNotificationService {
     }
 
     public void sendChatMessage(Long userId, Long roomId, String senderNickname, String content) {
+        String bodyText = content == null || content.isBlank() ? "사진을 보냈어요." : content;
+        appNotificationRepository.save(AppNotification.builder()
+                .userId(userId)
+                .type("CHAT")
+                .title(senderNickname == null || senderNickname.isBlank() ? "새 채팅" : senderNickname)
+                .body(bodyText)
+                .chatRoomId(roomId)
+                .build());
+
         List<UserPushToken> tokens = userPushTokenRepository.findByUserId(userId);
         if (tokens.isEmpty()) {
             return;
@@ -47,7 +60,7 @@ public class PushNotificationService {
                     "to", token.getToken(),
                     "sound", "default",
                     "title", senderNickname == null || senderNickname.isBlank() ? "새 채팅" : senderNickname,
-                    "body", content == null ? "새 메시지가 도착했어요." : content,
+                    "body", bodyText,
                     "data", Map.of(
                             "type", "chat",
                             "roomId", roomId
@@ -65,5 +78,17 @@ public class PushNotificationService {
                 // Push delivery is best-effort and should not block chat delivery.
             }
         }
+    }
+
+    public List<AppNotificationResponse> getNotifications(Long userId) {
+        return appNotificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(AppNotificationResponse::from)
+                .toList();
+    }
+
+    public void markAllRead(Long userId) {
+        List<AppNotification> notifications = appNotificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        notifications.forEach(AppNotification::markRead);
+        appNotificationRepository.saveAll(notifications);
     }
 }

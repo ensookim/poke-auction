@@ -67,7 +67,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
             if ("SEND".equalsIgnoreCase(request.getType())) {
                 Long roomId = sessionRooms.getOrDefault(session.getId(), request.getRoomId());
-                ChatMessageResponse message = chatService.sendMessage(roomId, userId, request.getContent());
+                ChatMessageResponse message = chatService.sendMessage(
+                        roomId,
+                        userId,
+                        request.getContent(),
+                        request.getImageUrl()
+                );
                 ChatSocketEvent event = ChatSocketEvent.message(message);
                 broadcast(roomId, event);
                 broadcastToUser(chatService.getOtherParticipantId(roomId, userId), event);

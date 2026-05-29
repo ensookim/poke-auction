@@ -10,4 +10,5 @@ public class ChatSocketRequest {
     private String type;
     private Long roomId;
     private String content;
+    private String imageUrl;
 }

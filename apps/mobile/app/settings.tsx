@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { palette } from '@/constants/ui';
+import authService from '@/services/authService';
 import appSettingsService, { ToastSettings } from '@/services/appSettingsService';
 import { showToast } from '@/services/toastService';
 
@@ -43,6 +45,31 @@ export default function SettingsScreen() {
   const updateChat = async (enabled: boolean) => {
     setToastSettings((prev) => ({ ...prev, chat: enabled }));
     await appSettingsService.setChatToastEnabled(enabled);
+  };
+
+  const handleWithdraw = () => {
+    Alert.alert(
+      '회원 탈퇴',
+      '탈퇴하면 계정 정보가 비활성화되고 다시 복구할 수 없습니다. 진행할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.withdraw();
+              router.replace('/login');
+            } catch (error) {
+              Alert.alert(
+                '탈퇴 실패',
+                error instanceof Error ? error.message : '잠시 후 다시 시도해주세요.',
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -90,6 +117,19 @@ export default function SettingsScreen() {
             disabled={!toastSettings.all}
             onValueChange={updateChat}
           />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>계정</ThemedText>
+            <ThemedText style={styles.sectionText}>
+              더 이상 서비스를 이용하지 않을 때 계정을 비활성화할 수 있어요.
+            </ThemedText>
+          </View>
+          <Pressable style={styles.withdrawButton} onPress={handleWithdraw}>
+            <Ionicons name="person-remove-outline" size={18} color="#DC2626" />
+            <ThemedText style={styles.withdrawText}>회원 탈퇴</ThemedText>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -140,7 +180,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: 18 },
   eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
   title: { color: palette.ink, fontSize: 28, fontWeight: '900', lineHeight: 34 },
-  section: { paddingVertical: 2 },
+  section: { paddingVertical: 2, marginBottom: 22 },
   sectionHeader: { marginBottom: 10 },
   sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900' },
   sectionText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
@@ -165,4 +205,15 @@ const styles = StyleSheet.create({
   settingTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
   settingText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   disabledText: { color: '#667085' },
+  withdrawButton: {
+    alignItems: 'center',
+    borderColor: '#FCA5A5',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  withdrawText: { color: '#DC2626', fontSize: 14, fontWeight: '900' },
 });

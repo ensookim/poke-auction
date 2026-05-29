@@ -1,6 +1,7 @@
 package com.pokeauction.auction.api.notification.controller;
 
 import com.pokeauction.auction.api.auth.service.JwtProvider;
+import com.pokeauction.auction.api.notification.dto.AppNotificationResponse;
 import com.pokeauction.auction.api.notification.dto.PushTokenRequest;
 import com.pokeauction.auction.api.notification.service.PushNotificationService;
 import jakarta.validation.Valid;
@@ -8,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -23,6 +26,20 @@ public class NotificationController {
             @RequestHeader(value = "Authorization", required = false) String authorization
     ) {
         pushNotificationService.registerToken(resolveUserId(authorization), request.getToken(), request.getPlatform());
+    }
+
+    @GetMapping
+    public List<AppNotificationResponse> notifications(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return pushNotificationService.getNotifications(resolveUserId(authorization));
+    }
+
+    @PostMapping("/read-all")
+    public void markAllRead(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        pushNotificationService.markAllRead(resolveUserId(authorization));
     }
 
     private Long resolveUserId(String authorization) {

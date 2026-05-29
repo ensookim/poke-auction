@@ -25,6 +25,7 @@ export interface ChatMessageResponse {
   senderId: number;
   senderNickname: string;
   content: string;
+  imageUrl?: string;
   createdAt: string;
   readByOther: boolean;
 }
@@ -67,6 +68,30 @@ class ChatService {
     await this.client.post(`/api/chats/rooms/${roomId}/read`);
   }
 
+  async uploadChatImage(imageUri: string): Promise<string> {
+    const filename = imageUri.split('/').pop() || `chat-${Date.now()}.jpg`;
+    const extension = filename.split('.').pop()?.toLowerCase();
+    const mimeType =
+      extension === 'png'
+        ? 'image/png'
+        : extension === 'webp'
+          ? 'image/webp'
+          : 'image/jpeg';
+    const formData = new FormData();
+
+    formData.append('file', {
+      uri: imageUri,
+      name: filename,
+      type: mimeType,
+    } as unknown as Blob);
+
+    const response = await this.client.post<{ imageUrl: string }>(
+      '/api/auctions/images',
+      formData,
+    );
+    return response.data.imageUrl;
+  }
+
   async openSocket(roomId: number, onEvent: (event: ChatSocketEvent) => void) {
     const token = await tokenStorage.getItem('accessToken');
     if (!token) {
@@ -105,8 +130,8 @@ class ChatService {
     };
 
     return {
-      send(content: string) {
-        sendPayload({ type: 'SEND', roomId, content });
+      send(content: string, imageUrl?: string) {
+        sendPayload({ type: 'SEND', roomId, content, imageUrl });
       },
       read() {
         sendPayload({ type: 'READ', roomId });

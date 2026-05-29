@@ -3,6 +3,17 @@ import * as Notifications from 'expo-notifications';
 
 import { createAuthenticatedClient } from '@/services/apiClient';
 
+export interface AppNotificationResponse {
+  id: number;
+  type: string;
+  title: string;
+  body?: string;
+  auctionId?: number;
+  chatRoomId?: number;
+  read: boolean;
+  createdAt: string;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -35,6 +46,15 @@ class NotificationService {
       token: token.data,
       platform: Platform.OS,
     });
+  }
+
+  async getNotifications(): Promise<AppNotificationResponse[]> {
+    const response = await this.client.get<AppNotificationResponse[]>('/api/notifications');
+    return response.data;
+  }
+
+  async markAllRead(): Promise<void> {
+    await this.client.post('/api/notifications/read-all');
   }
 }
 

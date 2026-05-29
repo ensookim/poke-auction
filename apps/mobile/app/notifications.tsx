@@ -1,19 +1,67 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { palette } from '@/constants/ui';
+import notificationService, {
+  AppNotificationResponse,
+} from '@/services/notificationService';
 
-const demoNotifications = [
-  { id: 1, title: '입찰 경쟁 알림', body: '내가 입찰한 상품에 더 높은 금액이 들어왔어요.', time: '방금 전' },
-  { id: 2, title: '마감 임박 알림', body: '관심 경매가 1시간 내 종료 예정입니다.', time: '12분 전' },
-  { id: 3, title: '낙찰 결과 알림', body: '축하합니다! 낙찰된 상품 결제를 진행해 주세요.', time: '1시간 전' },
-];
+const formatNotificationTime = (value: string) => {
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(0, Math.floor(diff / 60000));
+  if (minutes < 1) return '방금 전';
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
+};
+
+const getIconName = (type: string): keyof typeof Ionicons.glyphMap => {
+  if (type === 'CHAT') return 'chatbubble-ellipses-outline';
+  if (type === 'BID') return 'hammer-outline';
+  if (type === 'PAYMENT') return 'shield-checkmark-outline';
+  return 'notifications-outline';
+};
 
 export default function NotificationsScreen() {
+  const [notifications, setNotifications] = useState<AppNotificationResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadNotifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data);
+      if (data.some((item) => !item.read)) {
+        await notificationService.markAllRead();
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadNotifications();
+    }, [loadNotifications]),
+  );
+
+  const openNotification = (item: AppNotificationResponse) => {
+    if (item.chatRoomId) {
+      router.push({ pathname: '/chats/[id]', params: { id: String(item.chatRoomId) } } as any);
+      return;
+    }
+
+    if (item.auctionId) {
+      router.push(`/auctions/${item.auctionId}` as any);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -21,20 +69,48 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={22} color={palette.ink} />
         </Pressable>
         <ThemedText style={styles.title}>알림</ThemedText>
-        <View style={styles.headerPad} />
+        <Pressable style={styles.refreshButton} onPress={loadNotifications}>
+          <Ionicons name="refresh" size={19} color={palette.ink} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {demoNotifications.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.dot} />
-            <View style={styles.cardBody}>
-              <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
-              <ThemedText style={styles.cardText}>{item.body}</ThemedText>
-              <ThemedText style={styles.cardTime}>{item.time}</ThemedText>
-            </View>
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color={palette.brand} />
           </View>
-        ))}
+        ) : notifications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="notifications-off-outline" size={34} color="#98A2B3" />
+            <ThemedText style={styles.emptyTitle}>아직 알림이 없어요</ThemedText>
+            <ThemedText style={styles.emptyText}>입찰, 채팅, 거래 진행 알림이 여기에 쌓입니다.</ThemedText>
+          </View>
+        ) : (
+          notifications.map((item) => (
+            <Pressable
+              key={item.id}
+              style={({ pressed }) => [
+                styles.card,
+                !item.read && styles.unreadCard,
+                pressed && styles.pressedCard,
+              ]}
+              onPress={() => openNotification(item)}
+            >
+              <View style={styles.iconCircle}>
+                <Ionicons name={getIconName(item.type)} size={18} color={palette.ink} />
+              </View>
+              <View style={styles.cardBody}>
+                <View style={styles.cardTop}>
+                  <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
+                  {!item.read ? <View style={styles.dot} /> : null}
+                </View>
+                {item.body ? <ThemedText style={styles.cardText}>{item.body}</ThemedText> : null}
+                <ThemedText style={styles.cardTime}>{formatNotificationTime(item.createdAt)}</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color="#A1A1AA" />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -49,16 +125,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  backButton: {
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
+  backButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
   title: { color: palette.ink, fontSize: 20, fontWeight: '900' },
-  headerPad: { width: 36 },
-  content: { gap: 10, padding: 16 },
+  refreshButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
+  content: { flexGrow: 1, gap: 10, padding: 16 },
+  centerState: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingTop: 80 },
+  emptyState: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  emptyTitle: { color: palette.ink, fontSize: 17, fontWeight: '900', marginTop: 12 },
+  emptyText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 6, textAlign: 'center' },
   card: {
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: palette.line,
     borderRadius: 8,
@@ -67,9 +143,20 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
   },
-  dot: { backgroundColor: palette.brand, borderRadius: 999, height: 8, marginTop: 6, width: 8 },
+  unreadCard: { borderColor: '#BFDBFE', backgroundColor: '#F8FBFF' },
+  pressedCard: { opacity: 0.7 },
+  iconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 8,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
   cardBody: { flex: 1 },
-  cardTitle: { color: palette.ink, fontSize: 14, fontWeight: '900', marginBottom: 4 },
-  cardText: { color: '#52525B', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  cardTop: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  dot: { backgroundColor: palette.brand, borderRadius: 999, height: 7, width: 7 },
+  cardTitle: { color: palette.ink, flexShrink: 1, fontSize: 14, fontWeight: '900' },
+  cardText: { color: '#52525B', fontSize: 13, fontWeight: '600', lineHeight: 18, marginTop: 4 },
   cardTime: { color: '#A1A1AA', fontSize: 11, fontWeight: '700', marginTop: 8 },
 });

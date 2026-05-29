@@ -29,6 +29,9 @@ public class ChatMessage {
     @Column(nullable = false, length = 1000)
     private String content;
 
+    @Column(length = 500)
+    private String imageUrl;
+
     private LocalDateTime createdAt;
 
     @PrePersist

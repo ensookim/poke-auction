@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -54,6 +56,7 @@ export default function ChatRoomScreen() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isSendingImage, setIsSendingImage] = useState(false);
   const socketRef = useRef<SocketConnection | null>(null);
   const listRef = useRef<FlatList<ChatMessageResponse>>(null);
 
@@ -118,10 +121,10 @@ export default function ChatRoomScreen() {
     }
   };
 
-  const sendContent = async (content: string) => {
+  const sendContent = async (content: string, imageUrl?: string) => {
     setIsSending(true);
     try {
-      socketRef.current?.send(content);
+      socketRef.current?.send(content, imageUrl);
       setText('');
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     } finally {
@@ -146,6 +149,36 @@ export default function ChatRoomScreen() {
     }
 
     await sendContent(content);
+  };
+
+  const sendImage = async () => {
+    if (isSendingImage) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('사진 권한 필요', '채팅에서 사진을 보내려면 사진 접근 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) {
+      return;
+    }
+
+    try {
+      setIsSendingImage(true);
+      const imageUrl = await chatService.uploadChatImage(result.assets[0].uri);
+      await sendContent('사진', imageUrl);
+    } catch (error) {
+      Alert.alert('사진 전송 실패', error instanceof Error ? error.message : '사진을 보내지 못했습니다.');
+    } finally {
+      setIsSendingImage(false);
+    }
   };
 
   const handleReport = () => {
@@ -271,10 +304,15 @@ export default function ChatRoomScreen() {
                           <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
                         </View>
                       ) : null}
-                      <View style={[styles.bubble, mine && styles.myBubble]}>
-                        <ThemedText style={[styles.messageText, mine && styles.myMessageText]}>
-                          {message.content}
-                        </ThemedText>
+                      <View style={[styles.bubble, mine && styles.myBubble, message.imageUrl && styles.imageBubble]}>
+                        {message.imageUrl ? (
+                          <Image source={{ uri: message.imageUrl }} style={styles.messageImage} contentFit="cover" />
+                        ) : null}
+                        {message.content && message.content !== '사진' ? (
+                          <ThemedText style={[styles.messageText, mine && styles.myMessageText]}>
+                            {message.content}
+                          </ThemedText>
+                        ) : null}
                       </View>
                       {!mine ? (
                         <ThemedText style={styles.timeText}>{formatMessageTime(message.createdAt)}</ThemedText>
@@ -294,6 +332,17 @@ export default function ChatRoomScreen() {
           />
 
           <View style={[styles.inputBar, { marginBottom: Math.max(insets.bottom - 4, 0) }]}>
+            <Pressable
+              style={[styles.photoButton, isSendingImage && styles.sendButtonDisabled]}
+              onPress={sendImage}
+              disabled={isSendingImage}
+            >
+              {isSendingImage ? (
+                <ActivityIndicator size="small" color="#667085" />
+              ) : (
+                <Ionicons name="image-outline" size={19} color="#667085" />
+              )}
+            </Pressable>
             <TextInput
               value={text}
               onChangeText={setText}
@@ -391,6 +440,13 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   myBubble: { backgroundColor: '#DBEAFE' },
+  imageBubble: { padding: 4 },
+  messageImage: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 7,
+    height: 180,
+    width: 180,
+  },
   messageText: { color: '#111827', fontSize: 14, lineHeight: 19 },
   myMessageText: { color: '#111827' },
   myMessageMeta: { alignItems: 'flex-end', gap: 2 },
@@ -417,6 +473,14 @@ const styles = StyleSheet.create({
     minHeight: 38,
     paddingHorizontal: 12,
     paddingVertical: 9,
+  },
+  photoButton: {
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 8,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
   },
   sendButton: {
     alignItems: 'center',

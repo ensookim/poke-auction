@@ -44,6 +44,8 @@ public class User {
 
     private LocalDateTime restrictedUntil;
 
+    private LocalDateTime withdrawnAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -76,6 +78,10 @@ public class User {
     }
 
     public boolean isBidRestrictedNow() {
+        if (this.withdrawnAt != null) {
+            return true;
+        }
+
         if ("BANNED".equals(this.role)) {
             return true;
         }
@@ -89,5 +95,18 @@ public class User {
 
     public void changeNickname(String nickname) {
         this.nickname = nickname;
+    }
+
+    public boolean isWithdrawn() {
+        return this.withdrawnAt != null || "WITHDRAWN".equals(this.role);
+    }
+
+    public void withdraw() {
+        this.withdrawnAt = LocalDateTime.now();
+        this.role = "WITHDRAWN";
+        this.nickname = "Withdrawn user";
+        this.providerId = "withdrawn-" + this.id + "-" + System.currentTimeMillis();
+        this.bidRestricted = true;
+        this.restrictedUntil = LocalDateTime.now().plusYears(100);
     }
 }

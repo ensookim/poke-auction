@@ -15,6 +15,7 @@ public class ChatMessageResponse {
     private Long senderId;
     private String senderNickname;
     private String content;
+    private String imageUrl;
     private LocalDateTime createdAt;
     private boolean readByOther;
 
@@ -25,6 +26,7 @@ public class ChatMessageResponse {
                 .senderId(message.getSender().getId())
                 .senderNickname(message.getSender().getNickname())
                 .content(message.getContent())
+                .imageUrl(message.getImageUrl())
                 .createdAt(message.getCreatedAt())
                 .readByOther(message.getRoom().isReadByOther(message.getSender().getId(), message.getCreatedAt()))
                 .build();
