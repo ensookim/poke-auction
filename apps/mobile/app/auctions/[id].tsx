@@ -304,7 +304,11 @@ export default function AuctionDetail() {
       return null;
     }
 
-    await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+    const confirmed = await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+    if (confirmed.status !== 'DONE') {
+      Alert.alert('결제 확인 필요', '결제 승인 상태를 확인하지 못했습니다. 잠시 후 다시 확인해주세요.');
+      return null;
+    }
     return auctionService.getAuction(auctionId);
   };
 
@@ -371,7 +375,11 @@ export default function AuctionDetail() {
         return;
       }
 
-      await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      const confirmed = await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      if (confirmed.status !== 'DONE') {
+        Alert.alert('결제 확인 필요', '결제 승인 상태를 확인하지 못했습니다. 잠시 후 다시 확인해주세요.');
+        return;
+      }
       const updated = await auctionService.getAuction(auction.id);
       applyAuctionUpdate(updated);
       Alert.alert('안전결제 완료', '결제 금액이 구매확정 전까지 안전하게 보관됩니다.');

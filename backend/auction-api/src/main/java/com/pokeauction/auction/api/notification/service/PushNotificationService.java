@@ -1,7 +1,7 @@
 package com.pokeauction.auction.api.notification.service;
 
-import com.pokeauction.auction.api.notification.domain.UserPushToken;
 import com.pokeauction.auction.api.notification.domain.AppNotification;
+import com.pokeauction.auction.api.notification.domain.UserPushToken;
 import com.pokeauction.auction.api.notification.dto.AppNotificationResponse;
 import com.pokeauction.auction.api.notification.repository.AppNotificationRepository;
 import com.pokeauction.auction.api.notification.repository.UserPushTokenRepository;
@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,46 +39,13 @@ public class PushNotificationService {
     }
 
     public void sendChatMessage(Long userId, Long roomId, String senderNickname, String content) {
-        String bodyText = content == null || content.isBlank() ? "사진을 보냈어요." : content;
-        appNotificationRepository.save(AppNotification.builder()
-                .userId(userId)
-                .type("CHAT")
-                .title(senderNickname == null || senderNickname.isBlank() ? "새 채팅" : senderNickname)
-                .body(bodyText)
-                .chatRoomId(roomId)
-                .build());
+        String title = senderNickname == null || senderNickname.isBlank() ? "새 채팅" : senderNickname;
+        String body = content == null || content.isBlank() ? "사진을 보냈어요." : content;
+        send(userId, "CHAT", title, body, null, roomId);
+    }
 
-        List<UserPushToken> tokens = userPushTokenRepository.findByUserId(userId);
-        if (tokens.isEmpty()) {
-            return;
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        for (UserPushToken token : tokens) {
-            Map<String, Object> body = Map.of(
-                    "to", token.getToken(),
-                    "sound", "default",
-                    "title", senderNickname == null || senderNickname.isBlank() ? "새 채팅" : senderNickname,
-                    "body", bodyText,
-                    "data", Map.of(
-                            "type", "chat",
-                            "roomId", roomId
-                    )
-            );
-
-            try {
-                restTemplate.exchange(
-                        EXPO_PUSH_URL,
-                        HttpMethod.POST,
-                        new HttpEntity<>(body, headers),
-                        String.class
-                );
-            } catch (RestClientException ignored) {
-                // Push delivery is best-effort and should not block chat delivery.
-            }
-        }
+    public void sendAuctionNotification(Long userId, String type, String title, String body, Long auctionId) {
+        send(userId, type, title, body, auctionId, null);
     }
 
     public List<AppNotificationResponse> getNotifications(Long userId) {
@@ -90,5 +58,54 @@ public class PushNotificationService {
         List<AppNotification> notifications = appNotificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
         notifications.forEach(AppNotification::markRead);
         appNotificationRepository.saveAll(notifications);
+    }
+
+    private void send(Long userId, String type, String title, String body, Long auctionId, Long roomId) {
+        if (userId == null) {
+            return;
+        }
+
+        appNotificationRepository.save(AppNotification.builder()
+                .userId(userId)
+                .type(type)
+                .title(title)
+                .body(body)
+                .auctionId(auctionId)
+                .chatRoomId(roomId)
+                .build());
+
+        List<UserPushToken> tokens = userPushTokenRepository.findByUserId(userId);
+        if (tokens.isEmpty()) {
+            return;
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        for (UserPushToken token : tokens) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", type.toLowerCase());
+            if (auctionId != null) data.put("auctionId", auctionId);
+            if (roomId != null) data.put("roomId", roomId);
+
+            Map<String, Object> pushBody = Map.of(
+                    "to", token.getToken(),
+                    "sound", "default",
+                    "title", title,
+                    "body", body,
+                    "data", data
+            );
+
+            try {
+                restTemplate.exchange(
+                        EXPO_PUSH_URL,
+                        HttpMethod.POST,
+                        new HttpEntity<>(pushBody, headers),
+                        String.class
+                );
+            } catch (RestClientException ignored) {
+                // Push delivery is best-effort and should not block the core transaction.
+            }
+        }
     }
 }

@@ -14,16 +14,17 @@ import com.pokeauction.auction.api.chat.domain.ChatRoom;
 import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
 import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
 import com.pokeauction.auction.api.commerce.repository.WishlistItemRepository;
+import com.pokeauction.auction.api.notification.service.PushNotificationService;
 import com.pokeauction.auction.api.safety.repository.UserBlockRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.scheduling.annotation.Scheduled;
 
-import java.util.Comparator;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,6 +40,7 @@ public class AuctionService {
     private final WishlistItemRepository wishlistItemRepository;
     private final UserBlockRepository userBlockRepository;
     private final AuctionWebSocketHandler auctionWebSocketHandler;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional(readOnly = true)
     public List<AuctionResponse> listAuctions(String category, String sort, boolean activeOnly) {
@@ -76,8 +78,7 @@ public class AuctionService {
                 .endAt(LocalDateTime.now().plusHours(request.getDurationHours()))
                 .build();
 
-        Auction saved = auctionRepository.save(auction);
-        return toResponse(saved);
+        return toResponse(auctionRepository.save(auction));
     }
 
     @Transactional
@@ -116,20 +117,23 @@ public class AuctionService {
             throw new IllegalStateException("차단된 판매자의 경매에는 입찰할 수 없습니다.");
         }
 
+        Long previousWinnerId = auction.getWinnerId();
         Bid bid = Bid.builder()
-            .auction(auction)
-            .bidder(bidder)
-            .amount(amount)
-            .ipAddress(ipAddress)
-            .deviceId(deviceId)
-            .userAgent(userAgent)
-            .build();
+                .auction(auction)
+                .bidder(bidder)
+                .amount(amount)
+                .ipAddress(ipAddress)
+                .deviceId(deviceId)
+                .userAgent(userAgent)
+                .build();
 
         auction.placeBid(bid);
         bidRepository.save(bid);
         Auction saved = auctionRepository.save(auction);
         AuctionResponse response = toResponse(saved);
         auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        notifyOutbid(previousWinnerId, bidderId, saved);
+        notifySellerNewBid(saved, amount);
         return response;
     }
 
@@ -146,16 +150,17 @@ public class AuctionService {
         Auction saved = buyNowInternal(auctionId, buyerId, ipAddress, deviceId, userAgent, true);
         AuctionResponse response = toResponse(saved);
         auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        notifySellerPaymentHeld(saved);
         return response;
     }
 
     @Transactional
     public AuctionResponse payAuction(Long auctionId, Long buyerId) {
         Auction auction = auctionRepository.findByIdForUpdate(auctionId)
-                .orElseThrow(() -> new IllegalArgumentException("?대떦 寃쎈ℓ瑜?李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new IllegalArgumentException("해당 경매를 찾을 수 없습니다."));
 
         if (auction.getWinnerId() == null || !auction.getWinnerId().equals(buyerId)) {
-            throw new IllegalStateException("?숈같?먮쭔 寃곗젣?????덉뒿?덈떎.");
+            throw new IllegalStateException("낙찰자만 결제할 수 있습니다.");
         }
 
         auction.markPaymentPending();
@@ -163,6 +168,7 @@ public class AuctionService {
         Auction saved = auctionRepository.save(auction);
         AuctionResponse response = toResponse(saved);
         auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        notifySellerPaymentHeld(saved);
         return response;
     }
 
@@ -186,7 +192,7 @@ public class AuctionService {
         }
 
         if (auction.getCreatedBy() != null && auction.getCreatedBy().getId().equals(buyerId)) {
-            throw new IllegalArgumentException("자신의 경매에는 입찰할 수 없습니다.");
+            throw new IllegalArgumentException("자신의 경매에는 즉시 낙찰할 수 없습니다.");
         }
 
         if (auction.getCreatedBy() != null && isBlockedBetween(auction.getCreatedBy().getId(), buyerId)) {
@@ -194,13 +200,13 @@ public class AuctionService {
         }
 
         Bid bid = Bid.builder()
-            .auction(auction)
-            .bidder(bidder)
-            .amount(auction.getBuyNowPrice())
-            .ipAddress(ipAddress)
-            .deviceId(deviceId)
-            .userAgent(userAgent)
-            .build();
+                .auction(auction)
+                .bidder(bidder)
+                .amount(auction.getBuyNowPrice())
+                .ipAddress(ipAddress)
+                .deviceId(deviceId)
+                .userAgent(userAgent)
+                .build();
 
         auction.buyNow(bid);
         if (holdPayment) {
@@ -239,7 +245,7 @@ public class AuctionService {
         }
 
         if (!auction.isPaymentHeld()) {
-            throw new IllegalStateException("Safe payment must be held before shipping info can be submitted.");
+            throw new IllegalStateException("안전결제 후 배송 정보를 입력할 수 있습니다.");
         }
 
         if (auction.getCreatedBy() == null) {
@@ -298,7 +304,7 @@ public class AuctionService {
         }
 
         if (!auction.isPaymentHeld()) {
-            throw new IllegalStateException("Safe payment must be held before tracking info can be submitted.");
+            throw new IllegalStateException("안전결제 후 송장 정보를 입력할 수 있습니다.");
         }
 
         auction.updateTracking(request.getShippingCompany().trim(), request.getTrackingNumber().trim());
@@ -318,6 +324,13 @@ public class AuctionService {
             room.updateLastMessage(message.getContent());
             chatRoomRepository.save(room);
         }
+        pushNotificationService.sendAuctionNotification(
+                auction.getWinnerId(),
+                "SHIPPING",
+                "송장번호가 등록됐어요",
+                saved.getCardName() + " 배송 정보를 확인해주세요.",
+                saved.getId()
+        );
 
         return toResponse(saved);
     }
@@ -332,11 +345,19 @@ public class AuctionService {
         }
 
         if (!auction.isPaymentHeld()) {
-            throw new IllegalStateException("Safe payment must be held before confirming receipt.");
+            throw new IllegalStateException("안전결제 후 수령 확인을 할 수 있습니다.");
         }
 
         auction.confirmReceived();
-        return toResponse(auctionRepository.save(auction));
+        Auction saved = auctionRepository.save(auction);
+        pushNotificationService.sendAuctionNotification(
+                saved.getCreatedBy() == null ? null : saved.getCreatedBy().getId(),
+                "RECEIVED",
+                "구매확정 완료",
+                saved.getCardName() + " 구매자가 상품 수령을 확인했어요.",
+                saved.getId()
+        );
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -367,15 +388,63 @@ public class AuctionService {
                 .filter(a -> a.getEndAt() != null && a.getEndAt().isBefore(LocalDateTime.now()) && a.getWinnerId() == null)
                 .toList();
 
-        for (Auction a : ended) {
-            a.finalizeWinner();
-            auctionRepository.save(a);
+        for (Auction auction : ended) {
+            auction.finalizeWinner();
+            Auction saved = auctionRepository.save(auction);
+            if (saved.getWinnerId() != null) {
+                pushNotificationService.sendAuctionNotification(
+                        saved.getWinnerId(),
+                        "WIN",
+                        "경매에 낙찰됐어요",
+                        saved.getCardName() + " 결제를 진행해주세요.",
+                        saved.getId()
+                );
+            }
         }
     }
 
     private AuctionResponse toResponse(Auction auction) {
         long wishlistCount = auction.getId() == null ? 0L : wishlistItemRepository.countByAuctionId(auction.getId());
         return AuctionResponse.from(auction, wishlistCount);
+    }
+
+    private void notifyOutbid(Long previousWinnerId, Long newBidderId, Auction auction) {
+        if (previousWinnerId == null || previousWinnerId.equals(newBidderId)) {
+            return;
+        }
+        pushNotificationService.sendAuctionNotification(
+                previousWinnerId,
+                "BID_OUTBID",
+                "상위 입찰이 들어왔어요",
+                auction.getCardName() + " 현재가가 갱신됐어요.",
+                auction.getId()
+        );
+    }
+
+    private void notifySellerNewBid(Auction auction, Long amount) {
+        if (auction.getCreatedBy() == null) {
+            return;
+        }
+        pushNotificationService.sendAuctionNotification(
+                auction.getCreatedBy().getId(),
+                "BID",
+                "새 입찰이 들어왔어요",
+                auction.getCardName() + " 입찰가가 " + amount + "원으로 올라갔어요.",
+                auction.getId()
+        );
+    }
+
+    private void notifySellerPaymentHeld(Auction auction) {
+        if (auction.getCreatedBy() == null) {
+            return;
+        }
+        pushNotificationService.sendAuctionNotification(
+                auction.getCreatedBy().getId(),
+                "PAYMENT",
+                "안전결제가 완료됐어요",
+                auction.getCardName() + " 결제금이 보관 중입니다. 배송을 준비해주세요.",
+                auction.getId()
+        );
     }
 
     private boolean isBlockedBetween(Long userId, Long otherUserId) {

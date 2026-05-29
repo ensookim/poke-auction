@@ -76,6 +76,7 @@ export default function CartScreen() {
       );
 
       if (result.type !== 'success') {
+        Alert.alert('결제 취소', '결제가 완료되지 않았어요. 장바구니 상품은 그대로 유지됩니다.');
         return;
       }
 
@@ -85,15 +86,20 @@ export default function CartScreen() {
       const amount = Number(parsedUrl.searchParams.get('amount'));
 
       if (!paymentKey || !orderId || !amount) {
-        Alert.alert('결제 실패', '토스 결제 승인 정보를 확인하지 못했습니다.');
+        Alert.alert('결제 실패', '토스 결제 승인 정보를 확인하지 못했습니다. 결제 내역을 확인한 뒤 다시 시도해주세요.');
         return;
       }
 
-      await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      const confirmed = await paymentService.confirmTossPayment({ paymentKey, orderId, amount });
+      if (confirmed.status !== 'DONE') {
+        Alert.alert('결제 확인 필요', '결제 승인 상태를 확인하지 못했습니다. 잠시 후 다시 확인해주세요.');
+        return;
+      }
+
       await loadCart(true);
       Alert.alert(
         '안전결제 완료',
-        `${prepared.orderName}, 총 ${formatPrice(prepared.amount)} 결제가 보관되었습니다.`,
+        `${prepared.orderName}, 총 ${formatPrice(prepared.amount)} 결제가 구매확정 전까지 보관됩니다.`,
       );
     } catch (error) {
       Alert.alert('결제 실패', getFriendlyErrorMessage(error, '결제를 진행하지 못했습니다.'));

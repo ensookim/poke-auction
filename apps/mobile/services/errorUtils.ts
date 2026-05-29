@@ -23,7 +23,7 @@ export const getFriendlyErrorMessage = (
   }
 
   if (isNetworkError(error)) {
-    return '네트워크 연결이 불안정해요. 와이파이/데이터 상태를 확인하고 다시 시도해주세요.';
+    return '네트워크 연결이 불안정해요. 와이파이 또는 데이터 상태를 확인하고 다시 시도해주세요.';
   }
 
   if (isAxiosError(error)) {
