@@ -46,6 +46,12 @@ public class User {
 
     private LocalDateTime withdrawnAt;
 
+    private LocalDateTime termsAgreedAt;
+
+    private LocalDateTime privacyAgreedAt;
+
+    private LocalDateTime tradePolicyAgreedAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -108,5 +114,12 @@ public class User {
         this.providerId = "withdrawn-" + this.id + "-" + System.currentTimeMillis();
         this.bidRestricted = true;
         this.restrictedUntil = LocalDateTime.now().plusYears(100);
+    }
+
+    public void agreeToRequiredPolicies() {
+        LocalDateTime now = LocalDateTime.now();
+        this.termsAgreedAt = now;
+        this.privacyAgreedAt = now;
+        this.tradePolicyAgreedAt = now;
     }
 }

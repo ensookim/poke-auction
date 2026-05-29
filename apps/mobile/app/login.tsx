@@ -87,8 +87,15 @@ export default function LoginScreen() {
   const { isLoading, checkAuth } = useAuth();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [agreements, setAgreements] = useState({
+    terms: false,
+    privacy: false,
+    trade: false,
+  });
   const scrollRef = useRef<ScrollView>(null);
   const isLastSlide = activeIndex === slides.length - 1;
+  const requiredAgreementsAccepted =
+    agreements.terms && agreements.privacy && agreements.trade;
 
   const activeSlide = slides[activeIndex] ?? slides[0];
 
@@ -98,6 +105,11 @@ export default function LoginScreen() {
   );
 
   const handleKakaoLogin = async () => {
+    if (!requiredAgreementsAccepted) {
+      Alert.alert('필수 동의 필요', '서비스 이용약관, 개인정보처리방침, 거래·환불정책에 모두 동의해주세요.');
+      return;
+    }
+
     try {
       setIsAuthLoading(true);
 
@@ -128,6 +140,7 @@ export default function LoginScreen() {
       }
 
       await authService.saveTokens(accessToken, refreshToken);
+      await authService.acceptRequiredAgreements();
 
       if (userId) {
         await authService.saveUser({
@@ -176,6 +189,15 @@ export default function LoginScreen() {
     scrollRef.current?.scrollTo({
       x: (activeIndex + 1) * slideWidth,
       animated: true,
+    });
+  };
+
+  const toggleAllAgreements = () => {
+    const next = !requiredAgreementsAccepted;
+    setAgreements({
+      terms: next,
+      privacy: next,
+      trade: next,
     });
   };
 
@@ -260,11 +282,42 @@ export default function LoginScreen() {
           </ThemedText>
         </View>
 
+        {isLastSlide ? (
+          <View style={styles.agreementPanel}>
+            <AgreementRow
+              checked={requiredAgreementsAccepted}
+              label="필수 약관 전체 동의"
+              strong
+              onPress={toggleAllAgreements}
+            />
+            <View style={styles.agreementDivider} />
+            <AgreementRow
+              checked={agreements.terms}
+              label="서비스 이용약관 동의"
+              onPress={() => setAgreements((prev) => ({ ...prev, terms: !prev.terms }))}
+              onOpenPolicy={() => router.push('/legal-notice' as any)}
+            />
+            <AgreementRow
+              checked={agreements.privacy}
+              label="개인정보처리방침 동의"
+              onPress={() => setAgreements((prev) => ({ ...prev, privacy: !prev.privacy }))}
+              onOpenPolicy={() => router.push('/legal-notice' as any)}
+            />
+            <AgreementRow
+              checked={agreements.trade}
+              label="거래·환불정책 동의"
+              onPress={() => setAgreements((prev) => ({ ...prev, trade: !prev.trade }))}
+              onOpenPolicy={() => router.push('/legal-notice' as any)}
+            />
+          </View>
+        ) : null}
+
         <Pressable
           onPress={handlePrimaryPress}
           style={({ pressed }) => [
             styles.primaryButton,
             isLastSlide && styles.kakaoButton,
+            isLastSlide && !requiredAgreementsAccepted && styles.primaryButtonDisabled,
             pressed && styles.pressed,
           ]}
         >
@@ -284,6 +337,38 @@ export default function LoginScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+function AgreementRow({
+  checked,
+  label,
+  onOpenPolicy,
+  onPress,
+  strong,
+}: {
+  checked: boolean;
+  label: string;
+  onOpenPolicy?: () => void;
+  onPress: () => void;
+  strong?: boolean;
+}) {
+  return (
+    <View style={styles.agreementRow}>
+      <Pressable style={styles.agreementCheckArea} onPress={onPress}>
+        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+          {checked ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+        </View>
+        <ThemedText style={[styles.agreementText, strong && styles.agreementTextStrong]}>
+          {label}
+        </ThemedText>
+      </Pressable>
+      {onOpenPolicy ? (
+        <Pressable onPress={onOpenPolicy} hitSlop={10}>
+          <ThemedText style={styles.policyLink}>보기</ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -517,6 +602,9 @@ const styles = StyleSheet.create({
     height: 58,
     justifyContent: 'center',
   },
+  primaryButtonDisabled: {
+    opacity: 0.62,
+  },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
@@ -546,6 +634,61 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.88,
+  },
+  agreementPanel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 9,
+    marginBottom: 12,
+    padding: 12,
+  },
+  agreementRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  agreementCheckArea: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  checkbox: {
+    alignItems: 'center',
+    borderColor: '#D0D5DD',
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxChecked: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  agreementText: {
+    color: '#475467',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  agreementTextStrong: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  agreementDivider: {
+    backgroundColor: '#EEF0F4',
+    height: 1,
+  },
+  policyLink: {
+    color: '#2563EB',
+    fontSize: 12,
+    fontWeight: '900',
+    paddingLeft: 10,
   },
   phoneMock: {
     alignSelf: 'center',

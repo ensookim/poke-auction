@@ -80,6 +80,15 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/agreements")
+    public ResponseEntity<Void> agreeToRequiredPolicies(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        Long userId = resolveUserId(authorization);
+        authService.agreeToRequiredPolicies(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/kakao/callback")
     public void kakaoCallback(
             @RequestParam String code,

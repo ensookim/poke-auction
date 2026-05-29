@@ -130,6 +130,13 @@ public class AuthService {
         user.withdraw();
     }
 
+    @Transactional
+    public void agreeToRequiredPolicies(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 정보를 찾을 수 없습니다."));
+        user.agreeToRequiredPolicies();
+    }
+
     private String normalizeNickname(String nickname) {
         return nickname == null ? "" : nickname.trim();
     }

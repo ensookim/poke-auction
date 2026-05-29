@@ -85,12 +85,20 @@ function RootLayoutNav() {
             />
           </>
         ) : (
-          <Stack.Screen
-            name="login"
-            options={{
-              headerShown: false,
-            }}
-          />
+          <>
+            <Stack.Screen
+              name="login"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="legal-notice"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+          </>
         )}
       </Stack>
       <ChatNotificationListener />

@@ -2,7 +2,10 @@
 -- Safe to run repeatedly: all column/table additions use IF NOT EXISTS.
 
 ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS withdrawn_at TIMESTAMP;
+    ADD COLUMN IF NOT EXISTS withdrawn_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS terms_agreed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS privacy_agreed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS trade_policy_agreed_at TIMESTAMP;
 
 ALTER TABLE auctions
     ADD COLUMN IF NOT EXISTS winner_id BIGINT,
@@ -48,3 +51,9 @@ CREATE INDEX IF NOT EXISTS idx_app_notifications_user_created
 
 CREATE INDEX IF NOT EXISTS idx_user_push_tokens_user
     ON user_push_tokens (user_id);
+
+ALTER TABLE safety_reports
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS idx_safety_reports_status_created
+    ON safety_reports (status, created_at DESC);

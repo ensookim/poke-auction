@@ -209,6 +209,10 @@ class AuthService {
     await this.clearTokens();
   }
 
+  async acceptRequiredAgreements(): Promise<void> {
+    await this.client.post('/api/auth/agreements');
+  }
+
   /**
    * 사용자 정보 저장
    */

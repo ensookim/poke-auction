@@ -1,10 +1,13 @@
 package com.pokeauction.auction.api.admin.controller;
 
+import com.pokeauction.auction.api.admin.dto.AdminReportStatusRequest;
 import com.pokeauction.auction.api.admin.dto.SuspiciousWarning;
 import com.pokeauction.auction.api.admin.service.AdminService;
 import com.pokeauction.auction.api.auth.service.JwtProvider;
+import com.pokeauction.auction.api.safety.dto.SafetyReportResponse;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +39,25 @@ public class AdminController {
     ) {
         resolveAdmin(authorization);
         return adminService.markUnpaid(userId);
+    }
+
+    @GetMapping("/reports")
+    public List<SafetyReportResponse> reports(
+            @RequestParam(required = false) String status,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        resolveAdmin(authorization);
+        return adminService.getReports(status);
+    }
+
+    @PatchMapping("/reports/{reportId}/status")
+    public SafetyReportResponse updateReportStatus(
+            @PathVariable Long reportId,
+            @RequestBody @Valid AdminReportStatusRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        resolveAdmin(authorization);
+        return adminService.updateReportStatus(reportId, request.getStatus());
     }
 
     private User resolveAdmin(String authorization) {

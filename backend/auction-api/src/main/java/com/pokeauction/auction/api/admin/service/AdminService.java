@@ -5,6 +5,9 @@ import com.pokeauction.auction.api.auction.domain.Auction;
 import com.pokeauction.auction.api.auction.repository.AuctionRepository;
 import com.pokeauction.auction.api.bid.domain.Bid;
 import com.pokeauction.auction.api.bid.repository.BidRepository;
+import com.pokeauction.auction.api.safety.domain.SafetyReport;
+import com.pokeauction.auction.api.safety.dto.SafetyReportResponse;
+import com.pokeauction.auction.api.safety.repository.SafetyReportRepository;
 import com.pokeauction.auction.api.user.domain.User;
 import com.pokeauction.auction.api.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,9 @@ public class AdminService {
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
     private final UserRepository userRepository;
+    private final SafetyReportRepository safetyReportRepository;
+
+    private static final Set<String> REPORT_STATUSES = Set.of("OPEN", "REVIEWING", "RESOLVED", "REJECTED");
 
     @Transactional(readOnly = true)
     public List<SuspiciousWarning> detectSuspiciousPatterns() {
@@ -87,5 +93,30 @@ public class AdminService {
         }
 
         return userRepository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SafetyReportResponse> getReports(String status) {
+        String normalizedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase(Locale.ROOT);
+        List<SafetyReport> reports = normalizedStatus == null
+                ? safetyReportRepository.findAllByOrderByCreatedAtDesc()
+                : safetyReportRepository.findByStatusOrderByCreatedAtDesc(normalizedStatus);
+
+        return reports.stream()
+                .map(SafetyReportResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public SafetyReportResponse updateReportStatus(Long reportId, String status) {
+        String normalizedStatus = status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+        if (!REPORT_STATUSES.contains(normalizedStatus)) {
+            throw new IllegalArgumentException("Unsupported report status.");
+        }
+
+        SafetyReport report = safetyReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found."));
+        report.updateStatus(normalizedStatus);
+        return SafetyReportResponse.from(report);
     }
 }
