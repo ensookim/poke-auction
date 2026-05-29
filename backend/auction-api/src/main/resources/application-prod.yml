@@ -1,0 +1,28 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+server:
+  error:
+    whitelabel:
+      enabled: false
+    include-message: never
+    include-stacktrace: never
+
+toss:
+  client-key: ${TOSS_CLIENT_KEY}
+  secret-key: ${TOSS_SECRET_KEY}
+
+kakao:
+  client-id: ${KAKAO_REST_API_KEY}
+  client-secret: ${KAKAO_CLIENT_SECRET}
+
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+
+app:
+  mobile-redirect-url: ${APP_MOBILE_REDIRECT_URL}
+  backend-url: ${APP_BACKEND_URL}
+  payment-success-url: ${APP_PAYMENT_SUCCESS_URL}
+  payment-fail-url: ${APP_PAYMENT_FAIL_URL}

@@ -126,6 +126,14 @@ export default function SettingsScreen() {
               더 이상 서비스를 이용하지 않을 때 계정을 비활성화할 수 있어요.
             </ThemedText>
           </View>
+          <Pressable style={styles.navigationRow} onPress={() => router.push('/shipping-address' as any)}>
+            <Ionicons name="location-outline" size={18} color={palette.ink} />
+            <View style={styles.navigationCopy}>
+              <ThemedText style={styles.navigationTitle}>기본 배송지</ThemedText>
+              <ThemedText style={styles.navigationText}>낙찰 후 사용할 배송지를 미리 저장</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={palette.muted} />
+          </Pressable>
           <Pressable style={styles.withdrawButton} onPress={handleWithdraw}>
             <Ionicons name="person-remove-outline" size={18} color="#DC2626" />
             <ThemedText style={styles.withdrawText}>회원 탈퇴</ThemedText>
@@ -205,6 +213,18 @@ const styles = StyleSheet.create({
   settingTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
   settingText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   disabledText: { color: '#667085' },
+  navigationRow: {
+    alignItems: 'center',
+    borderTopColor: '#E5E7EB',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 66,
+    paddingVertical: 12,
+  },
+  navigationCopy: { flex: 1 },
+  navigationTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
+  navigationText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   withdrawButton: {
     alignItems: 'center',
     borderColor: '#FCA5A5',

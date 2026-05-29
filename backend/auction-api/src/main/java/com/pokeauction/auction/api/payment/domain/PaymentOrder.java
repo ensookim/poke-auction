@@ -39,6 +39,7 @@ public class PaymentOrder {
     @Column(nullable = false)
     private PaymentOrderStatus status;
 
+    @Column(unique = true, length = 200)
     private String paymentKey;
 
     private LocalDateTime createdAt;

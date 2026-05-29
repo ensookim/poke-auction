@@ -57,3 +57,22 @@ ALTER TABLE safety_reports
 
 CREATE INDEX IF NOT EXISTS idx_safety_reports_status_created
     ON safety_reports (status, created_at DESC);
+
+ALTER TABLE payment_orders
+    ADD COLUMN IF NOT EXISTS payment_key VARCHAR(200);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_payment_orders_payment_key
+    ON payment_orders (payment_key)
+    WHERE payment_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS shipping_addresses (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL UNIQUE,
+    recipient_name VARCHAR(80) NOT NULL,
+    phone_number VARCHAR(30) NOT NULL,
+    address VARCHAR(300) NOT NULL,
+    address_detail VARCHAR(300),
+    delivery_memo VARCHAR(300),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);

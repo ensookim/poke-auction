@@ -150,7 +150,7 @@ public class TossPaymentService {
 
     @Transactional
     public TossPaymentConfirmResponse confirm(Long userId, TossPaymentConfirmRequest request) {
-        PaymentOrder order = paymentOrderRepository.findByOrderId(request.getOrderId())
+        PaymentOrder order = paymentOrderRepository.findByOrderIdForUpdate(request.getOrderId())
                 .orElseThrow(() -> new IllegalArgumentException("Payment order not found."));
 
         if (!order.getUserId().equals(userId)) {
@@ -165,6 +165,16 @@ public class TossPaymentService {
                     .status(order.getStatus().name())
                     .build();
         }
+
+        if (order.getStatus() == PaymentOrderStatus.FAILED) {
+            throw new IllegalStateException("Payment order has already failed. Please create a new payment order.");
+        }
+
+        paymentOrderRepository.findByPaymentKey(request.getPaymentKey())
+                .filter(existing -> !existing.getOrderId().equals(order.getOrderId()))
+                .ifPresent(existing -> {
+                    throw new IllegalStateException("Payment key is already used by another order.");
+                });
 
         if (!order.getAmount().equals(request.getAmount())) {
             order.fail();

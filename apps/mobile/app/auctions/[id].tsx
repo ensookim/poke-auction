@@ -39,6 +39,7 @@ import sellerReviewService from '@/services/sellerReviewService';
 import safetyService, { SafetyReportReason } from '@/services/safetyService';
 import auctionRealtimeService from '@/services/auctionRealtimeService';
 import { showToast } from '@/services/toastService';
+import shippingAddressService from '@/services/shippingAddressService';
 
 const reportReasons: { label: string; value: SafetyReportReason }[] = [
   { label: '사기 의심', value: 'FRAUD' },
@@ -165,6 +166,23 @@ export default function AuctionDetail() {
       setCollectionStatus(null);
     });
   }, [id, isSignedIn]);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      return;
+    }
+
+    shippingAddressService.get().then((savedAddress) => {
+      if (!savedAddress) {
+        return;
+      }
+      setRecipientName((value) => value || savedAddress.recipientName);
+      setPhoneNumber((value) => value || savedAddress.phoneNumber);
+      setAddress((value) => value || savedAddress.address);
+      setAddressDetail((value) => value || savedAddress.addressDetail || '');
+      setDeliveryMemo((value) => value || savedAddress.deliveryMemo || '');
+    }).catch(() => null);
+  }, [isSignedIn]);
 
   const nextBidAmount = useMemo(() => {
     if (!auction) {
