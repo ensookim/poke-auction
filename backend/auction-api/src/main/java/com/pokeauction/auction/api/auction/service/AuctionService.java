@@ -13,6 +13,7 @@ import com.pokeauction.auction.api.chat.domain.ChatMessage;
 import com.pokeauction.auction.api.chat.domain.ChatRoom;
 import com.pokeauction.auction.api.chat.repository.ChatMessageRepository;
 import com.pokeauction.auction.api.chat.repository.ChatRoomRepository;
+import com.pokeauction.auction.api.commerce.domain.WishlistItem;
 import com.pokeauction.auction.api.commerce.repository.WishlistItemRepository;
 import com.pokeauction.auction.api.notification.service.PushNotificationService;
 import com.pokeauction.auction.api.safety.repository.UserBlockRepository;
@@ -403,6 +404,21 @@ public class AuctionService {
         }
     }
 
+    @Scheduled(fixedDelay = 300000)
+    @Transactional
+    public void notifyEndingSoonWishlistAuctions() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime threshold = now.plusHours(24);
+
+        wishlistItemRepository.findAll().stream()
+                .filter(item -> !item.isEndingSoonNotified())
+                .filter(item -> item.getAuction() != null && item.getAuction().isActive())
+                .filter(item -> item.getAuction().getEndAt() != null)
+                .filter(item -> item.getAuction().getEndAt().isAfter(now))
+                .filter(item -> item.getAuction().getEndAt().isBefore(threshold))
+                .forEach(this::notifyWishlistEndingSoon);
+    }
+
     private AuctionResponse toResponse(Auction auction) {
         long wishlistCount = auction.getId() == null ? 0L : wishlistItemRepository.countByAuctionId(auction.getId());
         return AuctionResponse.from(auction, wishlistCount);
@@ -445,6 +461,19 @@ public class AuctionService {
                 auction.getCardName() + " 결제금이 보관 중입니다. 배송을 준비해주세요.",
                 auction.getId()
         );
+    }
+
+    private void notifyWishlistEndingSoon(WishlistItem item) {
+        Auction auction = item.getAuction();
+        Long userId = item.getUser() == null ? null : item.getUser().getId();
+        pushNotificationService.sendAuctionNotification(
+                userId,
+                "ENDING_SOON",
+                "관심 경매가 곧 끝나요",
+                auction.getCardName() + " 경매가 24시간 안에 종료됩니다.",
+                auction.getId()
+        );
+        item.markEndingSoonNotified();
     }
 
     private boolean isBlockedBetween(Long userId, Long otherUserId) {

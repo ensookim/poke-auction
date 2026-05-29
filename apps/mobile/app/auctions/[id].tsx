@@ -40,6 +40,7 @@ import safetyService, { SafetyReportReason } from '@/services/safetyService';
 import auctionRealtimeService from '@/services/auctionRealtimeService';
 import { showToast } from '@/services/toastService';
 import shippingAddressService from '@/services/shippingAddressService';
+import recentViewedService from '@/services/recentViewedService';
 
 const reportReasons: { label: string; value: SafetyReportReason }[] = [
   { label: '사기 의심', value: 'FRAUD' },
@@ -48,6 +49,33 @@ const reportReasons: { label: string; value: SafetyReportReason }[] = [
   { label: '외부거래 유도', value: 'OFF_PLATFORM' },
   { label: '기타', value: 'OTHER' },
 ];
+
+const getTrackingUrl = (company?: string, trackingNumber?: string) => {
+  if (!trackingNumber) {
+    return null;
+  }
+
+  const normalizedCompany = (company || '').replace(/\s/g, '').toLowerCase();
+  const encodedNumber = encodeURIComponent(trackingNumber);
+
+  if (normalizedCompany.includes('cj') || normalizedCompany.includes('대한통운')) {
+    return `https://trace.cjlogistics.com/next/tracking.html?wblNo=${encodedNumber}`;
+  }
+  if (normalizedCompany.includes('우체국') || normalizedCompany.includes('ems')) {
+    return `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${encodedNumber}`;
+  }
+  if (normalizedCompany.includes('한진')) {
+    return `https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillResult.do?mCode=MN038&wblnum=${encodedNumber}`;
+  }
+  if (normalizedCompany.includes('롯데')) {
+    return `https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo=${encodedNumber}`;
+  }
+  if (normalizedCompany.includes('로젠')) {
+    return `https://www.ilogen.com/web/personal/trace/${encodedNumber}`;
+  }
+
+  return `https://search.naver.com/search.naver?query=${encodeURIComponent(`${company || '택배'} ${trackingNumber}`)}`;
+};
 
 export default function AuctionDetail() {
   const { isSignedIn, user, logout } = useAuth();
@@ -136,6 +164,12 @@ export default function AuctionDetail() {
   useEffect(() => {
     loadAuction();
   }, [loadAuction]);
+
+  useEffect(() => {
+    if (auction) {
+      recentViewedService.add(auction).catch(() => null);
+    }
+  }, [auction?.id, auction?.currentPrice]);
 
   useFocusEffect(
     useCallback(() => {
@@ -601,6 +635,16 @@ export default function AuctionDetail() {
     } finally {
       setIsSubmittingTracking(false);
     }
+  };
+
+  const handleOpenTracking = async () => {
+    const trackingUrl = getTrackingUrl(auction?.shippingCompany, auction?.trackingNumber);
+    if (!trackingUrl) {
+      Alert.alert('배송조회 불가', '송장번호가 등록된 뒤 조회할 수 있어요.');
+      return;
+    }
+
+    await WebBrowser.openBrowserAsync(trackingUrl);
   };
 
   const handleConfirmReceived = async () => {
@@ -1152,6 +1196,10 @@ export default function AuctionDetail() {
                 <ThemedText style={styles.deliveryValue}>{auction.shippingCompany}</ThemedText>
                 <ThemedText style={styles.deliveryLabel}>송장번호</ThemedText>
                 <ThemedText style={styles.deliveryValue}>{auction.trackingNumber}</ThemedText>
+                <Pressable style={styles.trackingButton} onPress={handleOpenTracking}>
+                  <Ionicons name="open-outline" size={16} color="#FFFFFF" />
+                  <ThemedText style={styles.trackingButtonText}>배송조회 열기</ThemedText>
+                </Pressable>
               </View>
             ) : (
               <ThemedText style={styles.helperText}>판매자가 송장번호를 등록하면 여기에서 확인할 수 있어요.</ThemedText>
@@ -1757,6 +1805,17 @@ const styles = StyleSheet.create({
   },
   deliveryLabel: { color: palette.muted, fontSize: 12, fontWeight: '800' },
   deliveryValue: { color: palette.ink, fontSize: 15, fontWeight: '900', marginBottom: 6 },
+  trackingButton: {
+    alignItems: 'center',
+    backgroundColor: palette.ink,
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    marginTop: 6,
+    minHeight: 42,
+  },
+  trackingButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   completeBadge: {
     alignItems: 'center',
     backgroundColor: '#ECFDF3',

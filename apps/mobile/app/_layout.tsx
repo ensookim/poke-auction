@@ -66,6 +66,18 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="support"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
+              name="recent-viewed"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="following"
               options={{
                 animation: 'fade_from_bottom',

@@ -37,8 +37,18 @@ public class WishlistItem {
 
     private LocalDateTime createdAt;
 
+    private LocalDateTime endingSoonNotifiedAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    public boolean isEndingSoonNotified() {
+        return this.endingSoonNotifiedAt != null;
+    }
+
+    public void markEndingSoonNotified() {
+        this.endingSoonNotifiedAt = LocalDateTime.now();
     }
 }

@@ -76,3 +76,6 @@ CREATE TABLE IF NOT EXISTS shipping_addresses (
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
+
+ALTER TABLE wishlist_items
+    ADD COLUMN IF NOT EXISTS ending_soon_notified_at TIMESTAMP;
