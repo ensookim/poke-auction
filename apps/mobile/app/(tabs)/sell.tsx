@@ -117,6 +117,7 @@ export default function SellScreen() {
   const { isLoading, isSignedIn, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
+  const cardNameInputRef = useRef<TextInput>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cardName, setCardName] = useState('');
   const [cardDescription, setCardDescription] = useState('');
@@ -135,7 +136,9 @@ export default function SellScreen() {
     useState<(typeof LANGUAGE_OPTIONS)[number]>('한국어');
   const [cardCategory, setCardCategory] =
     useState<AuctionCategoryKey>('POKEMON');
-  const [imageUrl, setImageUrl] = useState('');
+  const [frontImageUrl, setFrontImageUrl] = useState('');
+  const [backImageUrl, setBackImageUrl] = useState('');
+  const [activePhotoSide, setActivePhotoSide] = useState<'front' | 'back'>('front');
   const [startingPrice, setStartingPrice] = useState('');
   const [minimumIncrement, setMinimumIncrement] = useState('100');
   const [buyNowPrice, setBuyNowPrice] = useState('');
@@ -163,7 +166,8 @@ export default function SellScreen() {
     setRawCondition('최상');
     setCardLanguage('한국어');
     setCardCategory('POKEMON');
-    setImageUrl('');
+    setFrontImageUrl('');
+    setBackImageUrl('');
     setStartingPrice('');
     setMinimumIncrement('100');
     setBuyNowPrice('');
@@ -202,7 +206,15 @@ export default function SellScreen() {
     [cardEdition, cardRarity, conditionText, productType],
   );
 
-  const pickImageFromLibrary = useCallback(async () => {
+  const setPhotoForSide = useCallback((side: 'front' | 'back', uri: string) => {
+    if (side === 'front') {
+      setFrontImageUrl(uri);
+      return;
+    }
+    setBackImageUrl(uri);
+  }, []);
+
+  const pickImageFromLibrary = useCallback(async (side: 'front' | 'back') => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('사진 접근 필요', '앨범에서 카드 사진을 선택하려면 권한이 필요합니다.');
@@ -211,11 +223,11 @@ export default function SellScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync(cardImagePickerOptions);
     if (!result.canceled) {
-      setImageUrl(result.assets[0].uri);
+      setPhotoForSide(side, result.assets[0].uri);
     }
-  }, []);
+  }, [setPhotoForSide]);
 
-  const takePhoto = useCallback(async () => {
+  const takePhoto = useCallback(async (side: 'front' | 'back') => {
     const permission = cameraPermission?.granted
       ? cameraPermission
       : await requestCameraPermission();
@@ -224,6 +236,7 @@ export default function SellScreen() {
       return;
     }
 
+    setActivePhotoSide(side);
     setIsCardCameraVisible(true);
   }, [cameraPermission, requestCameraPermission]);
 
@@ -248,14 +261,14 @@ export default function SellScreen() {
         { compress: 0.9, format: SaveFormat.JPEG },
       );
 
-      setImageUrl(cropped.uri);
+      setPhotoForSide(activePhotoSide, cropped.uri);
       setIsCardCameraVisible(false);
     } catch {
       Alert.alert('카메라 오류', '카드 사진을 촬영하지 못했습니다. 다시 시도해주세요.');
     } finally {
       setIsCapturing(false);
     }
-  }, [cameraLayout, isCapturing]);
+  }, [activePhotoSide, cameraLayout, isCapturing, setPhotoForSide]);
 
   const handleSubmit = useCallback(async () => {
     if (!cardName.trim()) {
@@ -263,8 +276,13 @@ export default function SellScreen() {
       return;
     }
 
-    if (!imageUrl) {
-      Alert.alert('등록 오류', '카드 사진을 선택하거나 촬영해주세요.');
+    if (!frontImageUrl) {
+      Alert.alert('등록 오류', '카드 앞면 사진을 선택하거나 촬영해주세요.');
+      return;
+    }
+
+    if (!backImageUrl) {
+      Alert.alert('등록 오류', '카드 뒷면 사진을 선택하거나 촬영해주세요.');
       return;
     }
 
@@ -303,10 +321,14 @@ export default function SellScreen() {
       cardDescription.trim(),
     ].filter(Boolean);
 
-    let uploadedImageUrl = imageUrl.trim();
+    let uploadedImageUrl = frontImageUrl.trim();
+    let uploadedBackImageUrl = backImageUrl.trim();
 
     if (uploadedImageUrl.startsWith('file:')) {
       uploadedImageUrl = await auctionService.uploadAuctionImage(uploadedImageUrl);
+    }
+    if (uploadedBackImageUrl.startsWith('file:')) {
+      uploadedBackImageUrl = await auctionService.uploadAuctionImage(uploadedBackImageUrl);
     }
 
     const request: CreateAuctionRequest = {
@@ -315,6 +337,7 @@ export default function SellScreen() {
       cardRarity: cardAttributeText || conditionText,
       cardCategory,
       imageUrl: uploadedImageUrl,
+      backImageUrl: uploadedBackImageUrl,
       startingPrice: starting,
       minimumIncrement: increment,
       durationHours: duration,
@@ -355,7 +378,8 @@ export default function SellScreen() {
     conditionText,
     durationHours,
     gradeText,
-    imageUrl,
+    backImageUrl,
+    frontImageUrl,
     logout,
     minimumIncrement,
     productType,
@@ -460,9 +484,9 @@ export default function SellScreen() {
 
         <View style={styles.previewPanel}>
           <View style={styles.previewMedia}>
-            {imageUrl ? (
+            {frontImageUrl ? (
               <Image
-                source={{ uri: imageUrl }}
+                source={{ uri: frontImageUrl }}
                 style={styles.previewImage}
                 contentFit="cover"
               />
@@ -491,9 +515,11 @@ export default function SellScreen() {
                 {selectedCategory.label}
               </ThemedText>
             </View>
-            <ThemedText style={styles.previewTitle} numberOfLines={2}>
-              {cardName || '카드 이름을 입력하세요'}
-            </ThemedText>
+            <Pressable onPress={() => cardNameInputRef.current?.focus()}>
+              <ThemedText style={styles.previewTitle} numberOfLines={2}>
+                {cardName || '카드명을 입력하세요'}
+              </ThemedText>
+            </Pressable>
             <ThemedText style={styles.previewMeta}>
               {cardAttributeText || conditionText} · {cardLanguage}
             </ThemedText>
@@ -517,14 +543,34 @@ export default function SellScreen() {
         </View>
 
         <View style={styles.photoActions}>
-          <Pressable style={styles.photoButton} onPress={pickImageFromLibrary}>
+          <Pressable style={styles.photoButton} onPress={() => pickImageFromLibrary('front')}>
             <Ionicons name="images-outline" size={18} color={palette.ink} />
-            <ThemedText style={styles.photoButtonText}>앨범에서 선택</ThemedText>
+            <ThemedText style={styles.photoButtonText}>앞면 앨범</ThemedText>
           </Pressable>
-          <Pressable style={styles.photoButton} onPress={takePhoto}>
+          <Pressable style={styles.photoButton} onPress={() => takePhoto('front')}>
             <Ionicons name="camera-outline" size={18} color={palette.ink} />
-            <ThemedText style={styles.photoButtonText}>사진 촬영</ThemedText>
+            <ThemedText style={styles.photoButtonText}>앞면 촬영</ThemedText>
           </Pressable>
+        </View>
+        <View style={styles.photoActions}>
+          <Pressable style={styles.photoButton} onPress={() => pickImageFromLibrary('back')}>
+            <Ionicons name="images-outline" size={18} color={palette.ink} />
+            <ThemedText style={styles.photoButtonText}>뒷면 앨범</ThemedText>
+          </Pressable>
+          <Pressable style={styles.photoButton} onPress={() => takePhoto('back')}>
+            <Ionicons name="camera-outline" size={18} color={palette.ink} />
+            <ThemedText style={styles.photoButtonText}>뒷면 촬영</ThemedText>
+          </Pressable>
+        </View>
+        <View style={styles.photoStatusRow}>
+          <View style={[styles.photoStatusPill, frontImageUrl && styles.photoStatusPillDone]}>
+            <Ionicons name={frontImageUrl ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={frontImageUrl ? palette.success : palette.muted} />
+            <ThemedText style={styles.photoStatusText}>앞면 대표사진</ThemedText>
+          </View>
+          <View style={[styles.photoStatusPill, backImageUrl && styles.photoStatusPillDone]}>
+            <Ionicons name={backImageUrl ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={backImageUrl ? palette.success : palette.muted} />
+            <ThemedText style={styles.photoStatusText}>뒷면 사진</ThemedText>
+          </View>
         </View>
         <ThemedText style={styles.photoHelper}>
           선택한 사진은 카드 비율에 맞게 자른 뒤 등록됩니다.
@@ -589,6 +635,7 @@ export default function SellScreen() {
             <ThemedText style={styles.sectionMeta}>검색에 노출되는 정보</ThemedText>
           </View>
           <TextInput
+            ref={cardNameInputRef}
             value={cardName}
             onChangeText={setCardName}
             placeholder="예: 2024 프리즘 루키 카드 PSA 10"
@@ -1133,6 +1180,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginBottom: 8,
+  },
+  photoStatusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  photoStatusPill: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  photoStatusPillDone: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#CCFBF1',
+  },
+  photoStatusText: {
+    color: palette.ink,
+    fontSize: 12,
+    fontWeight: '900',
   },
   photoButton: {
     alignItems: 'center',

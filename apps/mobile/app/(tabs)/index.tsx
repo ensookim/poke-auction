@@ -11,18 +11,26 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Redirect, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AuctionCategoryKey, formatPrice, formatRemainingTime, getCategoryMeta, sortAuctions } from '@/constants/auction';
-import { palette } from '@/constants/ui';
+import {
+  AuctionCategoryKey,
+  formatPrice,
+  formatRemainingTime,
+  getCategoryMeta,
+  sortAuctions,
+} from '@/constants/auction';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/context/AuthContext';
+import { palette } from '@/constants/ui';
 import auctionService, { AuctionResponse } from '@/services/auctionService';
 import { BACKEND_URL } from '@/services/apiConfig';
 import { getFriendlyErrorMessage } from '@/services/errorUtils';
+
+const H_PADDING = 16;
 
 const homeTabs: { label: string; category: AuctionCategoryKey }[] = [
   { label: '전체', category: 'ALL' },
@@ -31,14 +39,13 @@ const homeTabs: { label: string; category: AuctionCategoryKey }[] = [
   { label: '원피스', category: 'ONE_PIECE' },
   { label: '매직', category: 'ETC' },
 ];
-const H_PADDING = 16;
 
 const adBanners = [
-  { id: 'ad-1', title: '5월 신규 혜택', subtitle: '결제 | 할인 | 포인트', bg: '#F3EDE5' },
-  { id: 'ad-2', title: '오늘의 특가', subtitle: '마감 임박 상품 모아보기', bg: '#E8EEF8' },
-  { id: 'ad-3', title: '첫 거래 지원', subtitle: '수수료 혜택 확인하기', bg: '#E8F7F1' },
-  { id: 'ad-4', title: '안심 거래 캠페인', subtitle: '검수 배지 상품 우선 노출', bg: '#F5EBF7' },
-  { id: 'ad-5', title: '주말 번개 경매', subtitle: '즉시낙찰 프로모션 진행중', bg: '#EDEDF0' },
+  { id: 'ad-1', title: '안전결제 오픈', subtitle: '결제부터 구매확정까지 안전하게', bg: '#F3EDE5' },
+  { id: 'ad-2', title: '마감 임박', subtitle: '오늘 끝나는 경매를 먼저 확인하세요', bg: '#E8EEF8' },
+  { id: 'ad-3', title: '첫 거래 지원', subtitle: '배송지와 알림을 미리 설정해두세요', bg: '#E8F7F1' },
+  { id: 'ad-4', title: '인기 카드 모음', subtitle: '찜과 입찰이 몰리는 상품', bg: '#F5EBF7' },
+  { id: 'ad-5', title: '주말 경매', subtitle: '즉시구매 상품도 함께 둘러보기', bg: '#EDEDF0' },
 ];
 
 export default function HomeScreen() {
@@ -51,7 +58,6 @@ export default function HomeScreen() {
   const [activeHomeTab, setActiveHomeTab] = useState(0);
   const [activeAd, setActiveAd] = useState(0);
   const mainScrollRef = useRef<ScrollView>(null);
-  const tabPagerRef = useRef<ScrollView>(null);
   const adPagerRef = useRef<ScrollView>(null);
   const contentWidth = Math.max(width - H_PADDING * 2, 280);
 
@@ -63,7 +69,7 @@ export default function HomeScreen() {
     } catch (error) {
       Alert.alert(
         '경매 목록 오류',
-        `${getFriendlyErrorMessage(error, '경매 목록을 불러오지 못했습니다.')}\n\n요청 주소: ${BACKEND_URL}/api/auctions`,
+        `${getFriendlyErrorMessage(error, '경매 목록을 불러오지 못했어요.')}\n\n요청 주소: ${BACKEND_URL}/api/auctions`,
       );
     } finally {
       if (!silent) setIsFetching(false);
@@ -96,9 +102,7 @@ export default function HomeScreen() {
       mainScrollRef.current?.scrollTo({ y: 0, animated: true });
     });
 
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -110,47 +114,19 @@ export default function HomeScreen() {
     }
   }, [loadAuctions]);
 
-  const auctionsByTab = useMemo(() => {
+  const selectedTab = homeTabs[activeHomeTab];
+  const filteredAuctions = useMemo(() => {
     const sorted = sortAuctions(auctions, 'new');
-    return homeTabs.reduce<Record<string, AuctionResponse[]>>((acc, tab) => {
-      acc[tab.label] =
-        tab.category === 'ALL'
-          ? sorted
-          : sorted.filter((auction) => auction.cardCategory === tab.category);
-      return acc;
-    }, {});
-  }, [auctions]);
-
-  const recentAuctions = useMemo(
-    () => sortAuctions(auctions, 'new').slice(0, 8),
-    [auctions],
-  );
-
-  const mostBidAuctions = useMemo(
-    () => [...auctions].sort((a, b) => b.bidCount - a.bidCount).slice(0, 5),
-    [auctions],
-  );
-
-  const mostWishedAuctions = useMemo(
-    () =>
-      [...auctions]
-        .sort((a, b) => (b.wishlistCount ?? 0) - (a.wishlistCount ?? 0))
-        .slice(0, 5),
-    [auctions],
-  );
+    if (selectedTab.category === 'ALL') return sorted;
+    return sorted.filter((auction) => auction.cardCategory === selectedTab.category);
+  }, [auctions, selectedTab.category]);
 
   const hotAuctions = useMemo(
     () =>
       [...auctions]
         .sort((a, b) => {
-          const aTimeScore = Math.max(
-            0,
-            24 - (new Date(a.endAt).getTime() - Date.now()) / 3600000,
-          );
-          const bTimeScore = Math.max(
-            0,
-            24 - (new Date(b.endAt).getTime() - Date.now()) / 3600000,
-          );
+          const aTimeScore = getEndingSoonScore(a.endAt);
+          const bTimeScore = getEndingSoonScore(b.endAt);
           const aScore = a.bidCount * 3 + (a.wishlistCount ?? 0) * 2 + aTimeScore;
           const bScore = b.bidCount * 3 + (b.wishlistCount ?? 0) * 2 + bTimeScore;
           return bScore - aScore;
@@ -172,9 +148,25 @@ export default function HomeScreen() {
   );
 
   const endingSoonCount = useMemo(
-    () => auctions.filter((a) => new Date(a.endAt).getTime() - Date.now() <= 24 * 60 * 60 * 1000).length,
+    () =>
+      auctions.filter((auction) => {
+        const remaining = new Date(auction.endAt).getTime() - Date.now();
+        return remaining > 0 && remaining <= 24 * 60 * 60 * 1000;
+      }).length,
     [auctions],
   );
+
+  const mostWishedAuctions = useMemo(
+    () => [...auctions].sort((a, b) => (b.wishlistCount ?? 0) - (a.wishlistCount ?? 0)).slice(0, 6),
+    [auctions],
+  );
+
+  const mostBidAuctions = useMemo(
+    () => [...auctions].sort((a, b) => b.bidCount - a.bidCount).slice(0, 6),
+    [auctions],
+  );
+
+  const allProducts = useMemo(() => filteredAuctions.slice(0, 8), [filteredAuctions]);
 
   if (isLoading || isFetching) {
     return (
@@ -204,10 +196,7 @@ export default function HomeScreen() {
             <Pressable style={styles.iconButton} onPress={() => router.push('/buy')}>
               <Ionicons name="search-outline" size={22} color={palette.ink} />
             </Pressable>
-            <Pressable
-              style={styles.iconButton}
-              onPress={() => router.push('/cart')}
-            >
+            <Pressable style={styles.iconButton} onPress={() => router.push('/cart')}>
               <Ionicons name="cart-outline" size={22} color={palette.ink} />
             </Pressable>
           </View>
@@ -218,35 +207,37 @@ export default function HomeScreen() {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => setActiveAd(Math.round(e.nativeEvent.contentOffset.x / contentWidth))}
+          onMomentumScrollEnd={(event) => setActiveAd(Math.round(event.nativeEvent.contentOffset.x / contentWidth))}
         >
           {adBanners.map((banner) => (
-            <Pressable key={banner.id} style={[styles.adCard, { width: contentWidth, backgroundColor: banner.bg }]}>
+            <Pressable
+              key={banner.id}
+              style={[styles.adCard, { width: contentWidth, backgroundColor: banner.bg }]}
+            >
               <View style={styles.adCopy}>
                 <ThemedText style={styles.adTitle}>{banner.title}</ThemedText>
                 <ThemedText style={styles.adSubtitle}>{banner.subtitle}</ThemedText>
               </View>
-              <ThemedText style={styles.adCount}>{activeAd + 1}/{adBanners.length}</ThemedText>
+              <ThemedText style={styles.adCount}>
+                {activeAd + 1}/{adBanners.length}
+              </ThemedText>
             </Pressable>
           ))}
         </ScrollView>
 
         <View style={styles.adDots}>
-          {adBanners.map((banner, idx) => <View key={banner.id} style={[styles.dot, idx === activeAd && styles.dotActive]} />)}
+          {adBanners.map((banner, index) => (
+            <View key={banner.id} style={[styles.dot, index === activeAd && styles.dotActive]} />
+          ))}
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRail}>
-          {homeTabs.map((tab, idx) => (
-            <Pressable
-              key={tab.category}
-              style={styles.topTab}
-              onPress={() => {
-                setActiveHomeTab(idx);
-                tabPagerRef.current?.scrollTo({ x: idx * contentWidth, animated: true });
-              }}
-            >
-              <ThemedText style={[styles.topTabText, idx === activeHomeTab && styles.topTabTextActive]}>{tab.label}</ThemedText>
-              {idx === activeHomeTab ? <View style={styles.topTabUnderline} /> : null}
+          {homeTabs.map((tab, index) => (
+            <Pressable key={tab.category} style={styles.topTab} onPress={() => setActiveHomeTab(index)}>
+              <ThemedText style={[styles.topTabText, index === activeHomeTab && styles.topTabTextActive]}>
+                {tab.label}
+              </ThemedText>
+              {index === activeHomeTab ? <View style={styles.topTabUnderline} /> : null}
             </Pressable>
           ))}
         </ScrollView>
@@ -270,285 +261,211 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        <AuctionRail
+          eyebrow="HOT"
+          title="지금 핫한 카드"
+          auctions={hotAuctions}
+          badge={(index) => `HOT ${index + 1}`}
+          metricIcon="flame"
+          metric={(auction) => `${auction.bidCount}입찰 · ${auction.wishlistCount ?? 0}찜`}
+        />
 
-        <View style={styles.sectionHeader}>
-          <View>
-            <ThemedText style={styles.sectionEyebrow}>HOT</ThemedText>
-            <ThemedText style={styles.sectionTitle}>지금 핫한 카드</ThemedText>
-          </View>
-          <Pressable style={styles.sectionMoreButton} onPress={() => router.push('/buy')}>
-            <ThemedText style={styles.linkText}>더보기</ThemedText>
-          </Pressable>
-        </View>
+        <AuctionRail
+          eyebrow="ENDING SOON"
+          title="마감 임박"
+          auctions={endingSoonAuctions}
+          badge={() => '마감임박'}
+          metricIcon="timer"
+          metric={(auction) => formatRemainingTime(auction.endAt)}
+          moreParams={{ sort: 'ending' }}
+        />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hotRail}
-        >
-          {hotAuctions.map((auction, index) => {
-            const category = getCategoryMeta(auction.cardCategory);
-            return (
-              <Pressable
-                key={auction.id}
-                style={styles.hotCard}
-                onPress={() => router.push(`/auctions/${auction.id}`)}
-              >
-                <View style={styles.hotImageFrame}>
-                  <Image source={{ uri: auction.imageUrl }} style={styles.hotImage} contentFit="cover" transition={160} />
-                  <View style={styles.hotRankBadge}>
-                    <ThemedText style={styles.hotRankText}>HOT {index + 1}</ThemedText>
-                  </View>
-                </View>
-                <View style={styles.hotBody}>
-                  <ThemedText style={[styles.hotCategory, { color: category.tint }]}>
-                    {category.label}
-                  </ThemedText>
-                  <ThemedText style={styles.hotTitle} numberOfLines={2}>
-                    {auction.cardName}
-                  </ThemedText>
-                  <View style={styles.hotSignals}>
-                    <View style={styles.hotSignal}>
-                      <Ionicons name="hammer-outline" size={12} color="#EF4444" />
-                      <ThemedText style={styles.hotSignalText}>{auction.bidCount}</ThemedText>
-                    </View>
-                    <View style={styles.hotSignal}>
-                      <Ionicons name="heart-outline" size={12} color="#EF4444" />
-                      <ThemedText style={styles.hotSignalText}>{auction.wishlistCount ?? 0}</ThemedText>
-                    </View>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <AuctionRail
+          eyebrow="WISHLIST"
+          title="찜 많은 순"
+          auctions={mostWishedAuctions}
+          badge={(index) => `찜 ${index + 1}`}
+          metricIcon="heart"
+          metric={(auction) => `${auction.wishlistCount ?? 0}찜`}
+        />
 
-        <View style={styles.sectionHeader}>
-          <View>
-            <ThemedText style={styles.sectionEyebrow}>NEW ARRIVALS</ThemedText>
-            <ThemedText style={styles.sectionTitle}>전체 상품</ThemedText>
-          </View>
-          <Pressable style={styles.sectionMoreButton} onPress={() => router.push('/buy')}>
-            <ThemedText style={styles.linkText}>더보기</ThemedText>
-          </Pressable>
-        </View>
+        <AuctionRail
+          eyebrow="BIDS"
+          title="입찰 많은 순"
+          auctions={mostBidAuctions}
+          badge={(index) => `입찰 ${index + 1}`}
+          metricIcon="hammer"
+          metric={(auction) => `${auction.bidCount}입찰`}
+        />
 
-        {recentAuctions.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <ThemedText style={styles.emptyTitle}>상품이 아직 없어요</ThemedText>
-            <ThemedText style={styles.emptyText}>첫 경매를 등록해보세요.</ThemedText>
-          </View>
+        <SectionHeader
+          eyebrow="ALL PRODUCTS"
+          title={selectedTab.category === 'ALL' ? '전체 상품' : `${selectedTab.label} 상품`}
+          onPress={() =>
+            router.push({
+              pathname: '/buy',
+              params: selectedTab.category === 'ALL' ? undefined : { category: selectedTab.category },
+            } as any)
+          }
+        />
+
+        {allProducts.length === 0 ? (
+          <EmptyBlock title="상품이 아직 없어요" text="다른 카테고리를 확인해보세요." />
         ) : (
           <View style={styles.grid}>
-            {recentAuctions.map((auction) => {
-              const category = getCategoryMeta(auction.cardCategory);
-              return (
-                <Pressable key={auction.id} style={styles.gridCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
-                  <View style={styles.gridImageFrame}>
-                    <Image source={{ uri: auction.imageUrl }} style={styles.gridImage} contentFit="cover" transition={160} />
-                  </View>
-                  <View style={styles.gridBody}>
-                    <View style={styles.gridMetaRow}>
-                      <ThemedText style={[styles.gridCategory, { color: category.tint }]}>{category.label}</ThemedText>
-                      <ThemedText style={styles.gridTime}>{formatRemainingTime(auction.endAt)}</ThemedText>
-                    </View>
-                    <ThemedText style={styles.gridTitle} numberOfLines={2}>{auction.cardName}</ThemedText>
-                    <View style={styles.gridFooter}>
-                      <ThemedText style={styles.gridPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
-                      <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
-                    </View>
-                  </View>
-                </Pressable>
-              );
-            })}
+            {allProducts.map((auction) => (
+              <GridAuctionCard key={auction.id} auction={auction} />
+            ))}
           </View>
         )}
-
-        {endingSoonAuctions.length > 0 ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <View>
-                <ThemedText style={styles.sectionEyebrow}>ENDING SOON</ThemedText>
-                <ThemedText style={styles.sectionTitle}>마감이 얼마 안 남았어요!</ThemedText>
-              </View>
-              <Pressable
-                style={styles.sectionMoreButton}
-                onPress={() =>
-                  router.push({
-                    pathname: '/buy',
-                    params: { sort: 'ending' },
-                  } as any)
-                }
-              >
-                <ThemedText style={styles.linkText}>더보기</ThemedText>
-              </Pressable>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.endingRail}
-            >
-              {endingSoonAuctions.map((auction) => {
-                const category = getCategoryMeta(auction.cardCategory);
-                return (
-                  <Pressable
-                    key={auction.id}
-                    style={styles.endingCard}
-                    onPress={() => router.push(`/auctions/${auction.id}`)}
-                  >
-                    <View style={styles.endingImageFrame}>
-                      <Image source={{ uri: auction.imageUrl }} style={styles.endingImage} contentFit="cover" transition={160} />
-                      <View style={styles.endingTimePill}>
-                        <Ionicons name="timer" size={12} color="#FFFFFF" />
-                        <ThemedText style={styles.endingTimeText}>
-                          {formatRemainingTime(auction.endAt)}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.endingBody}>
-                      <ThemedText style={[styles.endingCategory, { color: category.tint }]}>
-                        {category.label}
-                      </ThemedText>
-                      <ThemedText style={styles.endingTitle} numberOfLines={2}>
-                        {auction.cardName}
-                      </ThemedText>
-                      <ThemedText style={styles.endingPrice}>
-                        {formatPrice(auction.currentPrice)}
-                      </ThemedText>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </>
-        ) : null}
-        <ScrollView
-          ref={tabPagerRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => setActiveHomeTab(Math.round(e.nativeEvent.contentOffset.x / contentWidth))}
-        >
-          {homeTabs.map((tab) => {
-            const data = (auctionsByTab[tab.label] ?? []).slice(0, 8);
-            return (
-              <View key={tab.category} style={{ width: contentWidth }}>
-                <View style={styles.sectionHeader}>
-                  <ThemedText style={styles.sectionTitle}>{tab.label} 상품</ThemedText>
-                  <Pressable
-                    style={styles.sectionMoreButton}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/buy',
-                        params: tab.category === 'ALL' ? undefined : { category: tab.category },
-                      } as any)
-                    }
-                  >
-                    <ThemedText style={styles.linkText}>전체보기</ThemedText>
-                  </Pressable>
-                </View>
-                {data.length === 0 ? (
-                  <View style={styles.emptyBlock}>
-                    <ThemedText style={styles.emptyTitle}>상품이 아직 없어요</ThemedText>
-                    <ThemedText style={styles.emptyText}>다른 탭을 확인해보세요.</ThemedText>
-                  </View>
-                ) : (
-                  <View style={styles.grid}>
-                    {data.map((auction) => {
-                      const category = getCategoryMeta(auction.cardCategory);
-                      return (
-                        <Pressable key={auction.id} style={styles.gridCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
-                          <View style={styles.gridImageFrame}>
-                            <Image source={{ uri: auction.imageUrl }} style={styles.gridImage} contentFit="cover" transition={160} />
-                          </View>
-                          <View style={styles.gridBody}>
-                            <View style={styles.gridMetaRow}>
-                              <ThemedText style={[styles.gridCategory, { color: category.tint }]}>{category.label}</ThemedText>
-                              <ThemedText style={styles.gridTime}>{formatRemainingTime(auction.endAt)}</ThemedText>
-                            </View>
-                            <ThemedText style={styles.gridTitle} numberOfLines={2}>{auction.cardName}</ThemedText>
-                            <View style={styles.gridFooter}>
-                              <ThemedText style={styles.gridPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
-                              <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
-                            </View>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </ScrollView>
-        <View style={styles.trendGrid}>
-          <TrendPanel
-            icon="flame"
-            title="입찰 많은 순"
-            subtitle="많은 사람들이 경매에 참여중이에요"
-            auctions={mostBidAuctions}
-            metric={(auction) => `${auction.bidCount}명 참여`}
-          />
-          <TrendPanel
-            icon="heart"
-            title="찜 많은 순"
-            subtitle="컬렉터들이 많이 찜했어요"
-            auctions={mostWishedAuctions}
-            metric={(auction) => `${auction.wishlistCount ?? 0}찜`}
-          />
-        </View>
-
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function TrendPanel({
-  auctions,
-  icon,
-  metric,
-  subtitle,
+function getEndingSoonScore(endAt: string) {
+  const hoursLeft = (new Date(endAt).getTime() - Date.now()) / 3600000;
+  return Math.max(0, 24 - hoursLeft);
+}
+
+function SectionHeader({
+  eyebrow,
+  onPress,
   title,
 }: {
-  auctions: AuctionResponse[];
-  icon: keyof typeof Ionicons.glyphMap;
-  metric: (auction: AuctionResponse) => string;
-  subtitle: string;
+  eyebrow: string;
+  onPress?: () => void;
   title: string;
 }) {
   return (
-    <View style={styles.trendPanel}>
-      <View style={styles.trendHeader}>
-        <View style={styles.trendIcon}>
-          <Ionicons name={icon} size={15} color="#FFFFFF" />
-        </View>
-        <View style={styles.trendCopy}>
-          <ThemedText style={styles.trendTitle}>{title}</ThemedText>
-          <ThemedText style={styles.trendSubtitle}>{subtitle}</ThemedText>
-        </View>
+    <View style={styles.sectionHeader}>
+      <View>
+        <ThemedText style={styles.sectionEyebrow}>{eyebrow}</ThemedText>
+        <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
       </View>
+      {onPress ? (
+        <Pressable style={styles.sectionMoreButton} onPress={onPress}>
+          <ThemedText style={styles.linkText}>더보기</ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
 
-      <View style={styles.trendList}>
-        {auctions.slice(0, 3).map((auction, index) => (
-          <Pressable
-            key={auction.id}
-            style={styles.trendItem}
-            onPress={() => router.push(`/auctions/${auction.id}`)}
-          >
-            <ThemedText style={styles.trendRank}>{index + 1}</ThemedText>
-            <View style={styles.trendItemBody}>
-              <ThemedText style={styles.trendItemTitle} numberOfLines={1}>
-                {auction.cardName}
-              </ThemedText>
-              <ThemedText style={styles.trendItemMetric}>
-                {metric(auction)}
-              </ThemedText>
-            </View>
-          </Pressable>
-        ))}
+function AuctionRail({
+  auctions,
+  badge,
+  eyebrow,
+  metric,
+  metricIcon,
+  moreParams,
+  title,
+}: {
+  auctions: AuctionResponse[];
+  badge: (index: number, auction: AuctionResponse) => string;
+  eyebrow: string;
+  metric: (auction: AuctionResponse) => string;
+  metricIcon: keyof typeof Ionicons.glyphMap;
+  moreParams?: Record<string, string>;
+  title: string;
+}) {
+  return (
+    <>
+      <SectionHeader
+        eyebrow={eyebrow}
+        title={title}
+        onPress={() =>
+          router.push({
+            pathname: '/buy',
+            params: moreParams,
+          } as any)
+        }
+      />
+      {auctions.length === 0 ? (
+        <EmptyBlock title="보여줄 경매가 없어요" text="새 경매가 등록되면 여기에 표시됩니다." />
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardRail}>
+          {auctions.map((auction, index) => (
+            <RailAuctionCard
+              key={auction.id}
+              auction={auction}
+              badge={badge(index, auction)}
+              metric={metric(auction)}
+              metricIcon={metricIcon}
+            />
+          ))}
+        </ScrollView>
+      )}
+    </>
+  );
+}
+
+function RailAuctionCard({
+  auction,
+  badge,
+  metric,
+  metricIcon,
+}: {
+  auction: AuctionResponse;
+  badge: string;
+  metric: string;
+  metricIcon: keyof typeof Ionicons.glyphMap;
+}) {
+  const category = getCategoryMeta(auction.cardCategory);
+
+  return (
+    <Pressable style={styles.railCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
+      <View style={styles.railImageFrame}>
+        <Image source={{ uri: auction.imageUrl }} style={styles.railImage} contentFit="cover" transition={160} />
+        <View style={styles.railBadge}>
+          <ThemedText style={styles.railBadgeText}>{badge}</ThemedText>
+        </View>
       </View>
+      <View style={styles.railBody}>
+        <ThemedText style={[styles.railCategory, { color: category.tint }]}>{category.label}</ThemedText>
+        <ThemedText style={styles.railTitle} numberOfLines={2}>
+          {auction.cardName}
+        </ThemedText>
+        <ThemedText style={styles.railPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
+        <View style={styles.railMetric}>
+          <Ionicons name={metricIcon} size={12} color="#EF4444" />
+          <ThemedText style={styles.railMetricText}>{metric}</ThemedText>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function GridAuctionCard({ auction }: { auction: AuctionResponse }) {
+  const category = getCategoryMeta(auction.cardCategory);
+
+  return (
+    <Pressable style={styles.gridCard} onPress={() => router.push(`/auctions/${auction.id}`)}>
+      <View style={styles.gridImageFrame}>
+        <Image source={{ uri: auction.imageUrl }} style={styles.gridImage} contentFit="cover" transition={160} />
+      </View>
+      <View style={styles.gridBody}>
+        <View style={styles.gridMetaRow}>
+          <ThemedText style={[styles.gridCategory, { color: category.tint }]}>{category.label}</ThemedText>
+          <ThemedText style={styles.gridTime}>{formatRemainingTime(auction.endAt)}</ThemedText>
+        </View>
+        <ThemedText style={styles.gridTitle} numberOfLines={2}>
+          {auction.cardName}
+        </ThemedText>
+        <View style={styles.gridFooter}>
+          <ThemedText style={styles.gridPrice}>{formatPrice(auction.currentPrice)}</ThemedText>
+          <ThemedText style={styles.gridBid}>{auction.bidCount}입찰</ThemedText>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function EmptyBlock({ text, title }: { text: string; title: string }) {
+  return (
+    <View style={styles.emptyBlock}>
+      <ThemedText style={styles.emptyTitle}>{title}</ThemedText>
+      <ThemedText style={styles.emptyText}>{text}</ThemedText>
     </View>
   );
 }
@@ -564,9 +481,18 @@ const styles = StyleSheet.create({
   iconButton: { alignItems: 'center', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
   adCard: { borderRadius: 8, minHeight: 148, paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'space-between' },
   adCopy: { gap: 6 },
-  adTitle: { color: '#6B7280', fontSize: 14, fontWeight: '800' },
-  adSubtitle: { color: '#374151', fontSize: 30, fontWeight: '900', lineHeight: 38 },
-  adCount: { alignSelf: 'flex-end', backgroundColor: 'rgba(17,24,39,0.25)', borderRadius: 999, color: '#FFFFFF', fontSize: 12, fontWeight: '800', paddingHorizontal: 10, paddingVertical: 5 },
+  adTitle: { color: '#6B7280', fontSize: 14, fontWeight: '800', lineHeight: 20 },
+  adSubtitle: { color: '#374151', fontSize: 27, fontWeight: '900', lineHeight: 35 },
+  adCount: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(17,24,39,0.25)',
+    borderRadius: 999,
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
   adDots: { alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center', marginVertical: 12 },
   dot: { backgroundColor: '#D4D4D8', borderRadius: 999, height: 6, width: 6 },
   dotActive: { backgroundColor: '#111827', width: 16 },
@@ -575,18 +501,78 @@ const styles = StyleSheet.create({
   topTabText: { color: '#6B7280', fontSize: 17, fontWeight: '800' },
   topTabTextActive: { color: '#111827', fontWeight: '900' },
   topTabUnderline: { backgroundColor: '#111827', borderRadius: 999, height: 4, marginTop: 8, width: '100%' },
-  signalBand: { alignItems: 'center', backgroundColor: '#F3EDE5', borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, padding: 15 },
-  signalLabel: { color: '#9CA3AF', fontSize: 12, fontWeight: '800', marginBottom: 3 },
-  signalValue: { color: '#374151', fontSize: 21, fontWeight: '900' },
-  signalRight: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 999, flexDirection: 'row', gap: 5, paddingHorizontal: 10, paddingVertical: 8 },
+  signalBand: {
+    alignItems: 'center',
+    backgroundColor: '#F3EDE5',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    padding: 15,
+  },
+  signalLabel: { color: '#9CA3AF', fontSize: 12, fontWeight: '800', lineHeight: 17, marginBottom: 3 },
+  signalValue: { color: '#374151', fontSize: 21, fontWeight: '900', lineHeight: 27 },
+  signalRight: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   signalText: { color: '#1F2937', fontSize: 12, fontWeight: '900' },
-  sectionHeader: { alignItems: 'center', flexDirection: 'row', marginBottom: 10, marginTop: 6, width: '100%' },
-  sectionEyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 3 },
-  sectionTitle: { color: '#111827', fontSize: 18, fontWeight: '900' },
-  sectionMoreButton: { marginLeft: 'auto', paddingLeft: 12, alignSelf: 'flex-end' },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', marginBottom: 10, marginTop: 8, width: '100%' },
+  sectionEyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', lineHeight: 16, marginBottom: 3 },
+  sectionTitle: { color: '#111827', fontSize: 18, fontWeight: '900', lineHeight: 24 },
+  sectionMoreButton: { alignSelf: 'flex-end', marginLeft: 'auto', paddingLeft: 12 },
   linkText: { color: palette.brand, fontSize: 13, fontWeight: '900' },
+  cardRail: { gap: 10, paddingBottom: 14 },
+  railCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: 162,
+  },
+  railImageFrame: { aspectRatio: 0.78, backgroundColor: '#E5E7EB', position: 'relative', width: '100%' },
+  railImage: { height: '100%', width: '100%' },
+  railBadge: {
+    backgroundColor: '#111827',
+    borderRadius: 6,
+    left: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    position: 'absolute',
+    top: 8,
+  },
+  railBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+  railBody: { padding: 10 },
+  railCategory: { fontSize: 11, fontWeight: '900', marginBottom: 5 },
+  railTitle: { color: '#111827', fontSize: 14, fontWeight: '900', lineHeight: 19, minHeight: 38 },
+  railPrice: { color: palette.ink, fontSize: 16, fontWeight: '900', lineHeight: 22, marginTop: 8 },
+  railMetric: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF1F2',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+  },
+  railMetricText: { color: '#EF4444', fontSize: 11, fontWeight: '900' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  gridCard: { backgroundColor: palette.surface, borderColor: palette.line, borderRadius: 8, borderWidth: 1, overflow: 'hidden', width: '48.5%' },
+  gridCard: {
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: '48.5%',
+  },
   gridImageFrame: { aspectRatio: 0.72, backgroundColor: '#E5E7EB', position: 'relative', width: '100%' },
   gridImage: { height: '100%', width: '100%' },
   gridBody: { padding: 11 },
@@ -597,73 +583,15 @@ const styles = StyleSheet.create({
   gridFooter: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   gridPrice: { color: palette.ink, fontSize: 16, fontWeight: '900' },
   gridBid: { color: palette.muted, fontSize: 11, fontWeight: '800' },
-  trendGrid: { gap: 10, marginBottom: 14, marginTop: 14 },
-  trendPanel: { backgroundColor: '#FFFFFF', borderColor: palette.line, borderRadius: 8, borderWidth: 1, padding: 13 },
-  trendHeader: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 10 },
-  trendIcon: { alignItems: 'center', backgroundColor: '#111827', borderRadius: 8, height: 32, justifyContent: 'center', width: 32 },
-  trendCopy: { flex: 1 },
-  trendTitle: { color: '#111827', fontSize: 15, fontWeight: '900' },
-  trendSubtitle: { color: '#667085', fontSize: 12, fontWeight: '700', lineHeight: 17, marginTop: 2 },
-  trendList: { gap: 6 },
-  trendItem: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 8, flexDirection: 'row', gap: 9, minHeight: 44, paddingHorizontal: 9 },
-  trendRank: { color: '#EF4444', fontSize: 14, fontWeight: '900', width: 18 },
-  trendItemBody: { flex: 1, minWidth: 0 },
-  trendItemTitle: { color: '#111827', fontSize: 13, fontWeight: '900' },
-  trendItemMetric: { color: '#667085', fontSize: 11, fontWeight: '800', marginTop: 2 },
-  hotRail: { gap: 10, paddingBottom: 14 },
-  hotCard: {
-    backgroundColor: '#FFFFFF',
+  emptyBlock: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
-    overflow: 'hidden',
-    width: 152,
+    marginBottom: 14,
+    padding: 24,
   },
-  hotImageFrame: { aspectRatio: 0.78, backgroundColor: '#E5E7EB', position: 'relative', width: '100%' },
-  hotImage: { height: '100%', width: '100%' },
-  hotRankBadge: {
-    backgroundColor: '#111827',
-    borderRadius: 6,
-    left: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    position: 'absolute',
-    top: 8,
-  },
-  hotRankText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
-  hotBody: { padding: 10 },
-  hotCategory: { fontSize: 11, fontWeight: '900', marginBottom: 5 },
-  hotTitle: { color: '#111827', fontSize: 14, fontWeight: '900', lineHeight: 19, minHeight: 38 },
-  hotSignals: { flexDirection: 'row', gap: 6, marginTop: 9 },
-  hotSignal: { alignItems: 'center', backgroundColor: '#FFF1F2', borderRadius: 999, flexDirection: 'row', gap: 3, paddingHorizontal: 7, paddingVertical: 5 },
-  hotSignalText: { color: '#EF4444', fontSize: 11, fontWeight: '900' },
-  endingRail: { gap: 10, paddingBottom: 14 },
-  endingCard: {
-    backgroundColor: '#111827',
-    borderRadius: 8,
-    overflow: 'hidden',
-    width: 172,
-  },
-  endingImageFrame: { aspectRatio: 1.04, backgroundColor: '#1F2937', position: 'relative', width: '100%' },
-  endingImage: { height: '100%', width: '100%' },
-  endingTimePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.92)',
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: 4,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    position: 'absolute',
-    top: 8,
-  },
-  endingTimeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
-  endingBody: { padding: 11 },
-  endingCategory: { fontSize: 11, fontWeight: '900', marginBottom: 5 },
-  endingTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', lineHeight: 19, minHeight: 38 },
-  endingPrice: { color: '#FEE500', fontSize: 16, fontWeight: '900', marginTop: 9 },
-  emptyBlock: { alignItems: 'center', backgroundColor: palette.surface, borderColor: palette.line, borderRadius: 8, borderWidth: 1, padding: 24 },
-  emptyTitle: { color: palette.ink, fontSize: 17, fontWeight: '900', marginBottom: 6 },
-  emptyText: { color: palette.muted, fontSize: 13 },
+  emptyTitle: { color: palette.ink, fontSize: 17, fontWeight: '900', lineHeight: 23, marginBottom: 6 },
+  emptyText: { color: palette.muted, fontSize: 13, lineHeight: 19, textAlign: 'center' },
 });

@@ -34,6 +34,8 @@ public class Auction {
 
     private String imageUrl;
 
+    private String backImageUrl;
+
     private Long startingPrice;
 
     private Long currentPrice;

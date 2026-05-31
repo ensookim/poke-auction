@@ -9,6 +9,7 @@ export interface AuctionResponse {
   cardRarity: string;
   cardCategory: string;
   imageUrl: string;
+  backImageUrl?: string;
   startingPrice: number;
   currentPrice: number;
   minimumIncrement: number;
@@ -47,6 +48,7 @@ export interface CreateAuctionRequest {
   cardRarity?: string;
   cardCategory?: string;
   imageUrl?: string;
+  backImageUrl?: string;
   startingPrice: number;
   minimumIncrement: number;
   buyNowPrice?: number;

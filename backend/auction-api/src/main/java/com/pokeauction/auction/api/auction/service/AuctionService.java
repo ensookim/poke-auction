@@ -71,6 +71,7 @@ public class AuctionService {
                 .cardRarity(request.getCardRarity())
                 .cardCategory(normalizeCategoryOrDefault(request.getCardCategory()))
                 .imageUrl(request.getImageUrl())
+                .backImageUrl(request.getBackImageUrl())
                 .startingPrice(request.getStartingPrice())
                 .currentPrice(request.getStartingPrice())
                 .minimumIncrement(request.getMinimumIncrement())

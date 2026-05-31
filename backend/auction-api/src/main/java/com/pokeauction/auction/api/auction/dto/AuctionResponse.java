@@ -17,6 +17,7 @@ public class AuctionResponse {
     private String cardRarity;
     private String cardCategory;
     private String imageUrl;
+    private String backImageUrl;
     private Long startingPrice;
     private Long currentPrice;
     private Long minimumIncrement;
@@ -51,6 +52,7 @@ public class AuctionResponse {
                 .cardRarity(auction.getCardRarity())
                 .cardCategory(auction.getCardCategory())
                 .imageUrl(auction.getImageUrl())
+                .backImageUrl(auction.getBackImageUrl())
                 .startingPrice(auction.getStartingPrice())
                 .currentPrice(auction.getCurrentPrice())
                 .minimumIncrement(auction.getMinimumIncrement())

@@ -106,6 +106,7 @@ export default function AuctionDetail() {
   const [reviewContent, setReviewContent] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const lastPriceRef = useRef<number | null>(null);
   const priceFlash = useRef(new Animated.Value(0)).current;
 
@@ -804,7 +805,13 @@ export default function AuctionDetail() {
             </ThemedText>
           </View>
           <ThemedText style={styles.artMark}>{auction.cardName.slice(0, 2)}</ThemedText>
-          <Pressable style={styles.imagePressable} onPress={() => setIsImagePreviewVisible(true)}>
+          <Pressable
+            style={styles.imagePressable}
+            onPress={() => {
+              setPreviewImageUrl(auction.imageUrl);
+              setIsImagePreviewVisible(true);
+            }}
+          >
             <Image
               source={{ uri: auction.imageUrl }}
               style={styles.cardImage}
@@ -813,6 +820,30 @@ export default function AuctionDetail() {
             />
           </Pressable>
         </View>
+        {auction.backImageUrl ? (
+          <View style={styles.imageSideRow}>
+            <Pressable
+              style={styles.imageSideButton}
+              onPress={() => {
+                setPreviewImageUrl(auction.imageUrl);
+                setIsImagePreviewVisible(true);
+              }}
+            >
+              <Ionicons name="image-outline" size={15} color={palette.ink} />
+              <ThemedText style={styles.imageSideText}>앞면</ThemedText>
+            </Pressable>
+            <Pressable
+              style={styles.imageSideButton}
+              onPress={() => {
+                setPreviewImageUrl(auction.backImageUrl ?? auction.imageUrl);
+                setIsImagePreviewVisible(true);
+              }}
+            >
+              <Ionicons name="albums-outline" size={15} color={palette.ink} />
+              <ThemedText style={styles.imageSideText}>뒷면</ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.summary}>
           <View style={styles.summaryTop}>
@@ -1349,7 +1380,7 @@ export default function AuctionDetail() {
           <Pressable style={styles.previewClose} onPress={() => setIsImagePreviewVisible(false)}>
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </Pressable>
-          <Image source={{ uri: auction.imageUrl }} style={styles.previewImage} contentFit="contain" />
+          <Image source={{ uri: previewImageUrl ?? auction.imageUrl }} style={styles.previewImage} contentFit="contain" />
         </View>
       </Modal>
     </SafeAreaView>
@@ -1441,6 +1472,28 @@ const styles = StyleSheet.create({
     aspectRatio: 0.72,
     width: '100%',
     zIndex: 2,
+  },
+  imageSideRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  imageSideButton: {
+    alignItems: 'center',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  imageSideText: {
+    color: palette.ink,
+    fontSize: 13,
+    fontWeight: '900',
   },
   summary: {
     backgroundColor: palette.surface,

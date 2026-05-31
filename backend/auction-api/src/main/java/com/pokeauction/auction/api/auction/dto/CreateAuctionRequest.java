@@ -25,6 +25,8 @@ public class CreateAuctionRequest {
 
     private String imageUrl;
 
+    private String backImageUrl;
+
     @NotNull
     @Min(1)
     private Long startingPrice;
