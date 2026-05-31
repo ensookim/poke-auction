@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DetailPageHeader } from '@/components/detail-page-header';
 import { ThemedText } from '@/components/themed-text';
 import { formatPrice, formatRemainingTime, getCategoryMeta } from '@/constants/auction';
 import { palette } from '@/constants/ui';
@@ -45,16 +46,10 @@ export default function RecentViewedScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={palette.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <ThemedText style={styles.eyebrow}>RECENT</ThemedText>
-            <ThemedText style={styles.title}>최근 본 상품</ThemedText>
-          </View>
+        <View style={styles.headerRow}>
+          <DetailPageHeader eyebrow="RECENT" title="최근 본 상품" />
           {items.length > 0 ? (
-            <Pressable style={styles.clearButton} onPress={clear}>
+            <Pressable style={styles.clearButton} onPress={clear} accessibilityLabel="최근 본 상품 삭제">
               <Ionicons name="trash-outline" size={18} color="#DC2626" />
             </Pressable>
           ) : null}
@@ -79,7 +74,9 @@ export default function RecentViewedScreen() {
                   <Image source={{ uri: auction.imageUrl }} style={styles.image} contentFit="cover" />
                   <View style={styles.cardBody}>
                     <ThemedText style={[styles.category, { color: category.tint }]}>{category.label}</ThemedText>
-                    <ThemedText style={styles.cardName} numberOfLines={2}>{auction.cardName}</ThemedText>
+                    <ThemedText style={styles.cardName} numberOfLines={2}>
+                      {auction.cardName}
+                    </ThemedText>
                     <View style={styles.metaRow}>
                       <ThemedText style={styles.price}>{formatPrice(auction.currentPrice)}</ThemedText>
                       <ThemedText style={styles.metaText}>{auction.bidCount}입찰</ThemedText>
@@ -99,13 +96,9 @@ export default function RecentViewedScreen() {
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F5F5', flex: 1 },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { padding: 20 },
-  header: { alignItems: 'center', flexDirection: 'row', marginBottom: 18 },
-  backButton: { alignItems: 'center', height: 40, justifyContent: 'center', marginRight: 10, width: 40 },
-  headerCopy: { flex: 1 },
-  eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 3 },
-  title: { color: palette.ink, fontSize: 25, fontWeight: '900' },
-  clearButton: { alignItems: 'center', height: 40, justifyContent: 'center', width: 40 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  clearButton: { alignItems: 'center', height: 40, justifyContent: 'center', marginTop: 10, width: 40 },
   empty: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -114,7 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 28,
   },
-  emptyTitle: { color: palette.ink, fontSize: 17, fontWeight: '900', marginTop: 12 },
+  emptyTitle: { color: palette.ink, fontSize: 17, fontWeight: '900', lineHeight: 23, marginTop: 12 },
   emptyText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 6, textAlign: 'center' },
   list: { gap: 10 },
   card: {

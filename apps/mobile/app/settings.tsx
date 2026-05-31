@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DetailPageHeader } from '@/components/detail-page-header';
 import { ThemedText } from '@/components/themed-text';
 import { palette } from '@/constants/ui';
 import authService from '@/services/authService';
@@ -32,7 +33,7 @@ export default function SettingsScreen() {
       showToast({
         type: 'success',
         title: '상단 알림 켜짐',
-        message: '선택한 알림을 앱 위쪽에 표시합니다.',
+        message: '선택한 알림을 앱 상단에 표시합니다.',
       });
     }
   };
@@ -76,10 +77,7 @@ export default function SettingsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <ThemedText style={styles.eyebrow}>SETTINGS</ThemedText>
-          <ThemedText type="title" style={styles.title}>설정</ThemedText>
-        </View>
+        <DetailPageHeader eyebrow="SETTINGS" title="설정" />
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -91,7 +89,7 @@ export default function SettingsScreen() {
           <SettingToggle
             icon="notifications-outline"
             title="상단 알림 전체"
-            description="앱 내부 토스트 알림을 모두 켜거나 꺼요"
+            description="앱 안에서 뜨는 토스트 알림을 모두 켜거나 끕니다"
             value={toastSettings.all}
             onValueChange={updateAll}
           />
@@ -106,7 +104,7 @@ export default function SettingsScreen() {
           <SettingToggle
             icon="chatbubble-ellipses-outline"
             title="채팅 알림"
-            description="앱 사용 중 새 채팅이 왔을 때 표시"
+            description="앱 사용 중 새 채팅 내용을 상단에 표시"
             value={toastSettings.chat}
             disabled={!toastSettings.all}
             onValueChange={updateChat}
@@ -136,12 +134,18 @@ export default function SettingsScreen() {
             description="고객지원과 서비스 공지 확인"
             onPress={() => router.push('/support' as any)}
           />
+          <NavigationRow
+            icon="shield-checkmark-outline"
+            title="약관 및 거래정책"
+            description="개인정보처리방침, 이용약관, 환불정책"
+            onPress={() => router.push('/legal-notice' as any)}
+          />
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>계정</ThemedText>
-            <ThemedText style={styles.sectionText}>더 이상 서비스를 이용하지 않을 때 계정을 비활성화할 수 있어요.</ThemedText>
+            <ThemedText style={styles.sectionText}>더 이상 서비스를 이용하지 않을 때 계정을 비활성화할 수 있습니다.</ThemedText>
           </View>
           <Pressable style={styles.withdrawButton} onPress={handleWithdraw}>
             <Ionicons name="person-remove-outline" size={18} color="#DC2626" />
@@ -214,13 +218,10 @@ function NavigationRow({
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F5F5', flex: 1 },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
-  header: { marginBottom: 18 },
-  eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 4 },
-  title: { color: palette.ink, fontSize: 28, fontWeight: '900', lineHeight: 34 },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
   section: { marginBottom: 22, paddingVertical: 2 },
   sectionHeader: { marginBottom: 10 },
-  sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900' },
+  sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900', lineHeight: 22 },
   sectionText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 4 },
   settingRow: {
     alignItems: 'center',
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   settingRowDisabled: { opacity: 0.58 },
   settingIcon: { alignItems: 'center', borderRadius: 8, height: 34, justifyContent: 'center', width: 34 },
   settingCopy: { flex: 1 },
-  settingTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
+  settingTitle: { color: palette.ink, fontSize: 14, fontWeight: '900', lineHeight: 20 },
   settingText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   disabledText: { color: '#667085' },
   navigationRow: {
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   navigationCopy: { flex: 1 },
-  navigationTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
+  navigationTitle: { color: palette.ink, fontSize: 14, fontWeight: '900', lineHeight: 20 },
   navigationText: { color: palette.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
   withdrawButton: {
     alignItems: 'center',

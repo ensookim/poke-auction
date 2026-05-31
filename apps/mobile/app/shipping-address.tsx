@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DetailPageHeader } from '@/components/detail-page-header';
 import { ThemedText } from '@/components/themed-text';
 import { palette } from '@/constants/ui';
 import shippingAddressService from '@/services/shippingAddressService';
@@ -50,7 +57,7 @@ export default function ShippingAddressScreen() {
       });
       Alert.alert('저장 완료', '기본 배송지를 저장했어요.');
     } catch (error) {
-      Alert.alert('저장 실패', error instanceof Error ? error.message : '배송지를 저장하지 못했습니다.');
+      Alert.alert('저장 실패', error instanceof Error ? error.message : '배송지를 저장하지 못했어요.');
     } finally {
       setSaving(false);
     }
@@ -71,22 +78,26 @@ export default function ShippingAddressScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={palette.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <ThemedText style={styles.eyebrow}>SHIPPING</ThemedText>
-            <ThemedText style={styles.title}>기본 배송지</ThemedText>
-          </View>
-        </View>
+        <DetailPageHeader eyebrow="SHIPPING" title="기본 배송지" />
 
         <View style={styles.form}>
           <Field label="받는 사람" value={recipientName} onChangeText={setRecipientName} placeholder="홍길동" />
-          <Field label="연락처" value={phoneNumber} onChangeText={setPhoneNumber} placeholder="01012345678" keyboardType="phone-pad" />
+          <Field
+            label="연락처"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            placeholder="01012345678"
+            keyboardType="phone-pad"
+          />
           <Field label="주소" value={address} onChangeText={setAddress} placeholder="도로명 주소" />
           <Field label="상세 주소" value={addressDetail} onChangeText={setAddressDetail} placeholder="동/호수 등" />
-          <Field label="배송 요청사항" value={deliveryMemo} onChangeText={setDeliveryMemo} placeholder="문 앞에 놓아주세요" multiline />
+          <Field
+            label="배송 요청사항"
+            value={deliveryMemo}
+            onChangeText={setDeliveryMemo}
+            placeholder="문 앞에 놓아주세요"
+            multiline
+          />
         </View>
 
         <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={save} disabled={saving}>
@@ -132,21 +143,10 @@ const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F5F5', flex: 1 },
   centered: { alignItems: 'center', backgroundColor: '#F5F5F5', flex: 1, justifyContent: 'center' },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { padding: 20 },
-  header: { alignItems: 'center', flexDirection: 'row', marginBottom: 18 },
-  backButton: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    marginRight: 10,
-    width: 40,
-  },
-  headerCopy: { flex: 1 },
-  eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 3 },
-  title: { color: palette.ink, fontSize: 25, fontWeight: '900' },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
   form: { gap: 12 },
   field: { gap: 6 },
-  label: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  label: { color: palette.ink, fontSize: 13, fontWeight: '900', lineHeight: 18 },
   input: {
     backgroundColor: '#FFFFFF',
     borderColor: palette.line,

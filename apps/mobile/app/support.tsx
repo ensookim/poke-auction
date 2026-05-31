@@ -2,9 +2,9 @@ import Constants from 'expo-constants';
 import React from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DetailPageHeader } from '@/components/detail-page-header';
 import { ThemedText } from '@/components/themed-text';
 import { palette } from '@/constants/ui';
 
@@ -14,8 +14,8 @@ const notices = [
     body: '결제 금액은 구매확정 전까지 보관되며, 송장 등록과 수령 확인 후 정산 단계로 넘어갑니다.',
   },
   {
-    title: '외부거래 주의',
-    body: '계좌이체, 오픈채팅 등 앱 밖 거래는 분쟁 보호 대상에서 제외될 수 있습니다.',
+    title: '직거래 주의',
+    body: '계좌이체, 외부 채팅, 앱 밖 거래는 분쟁 보호 대상에서 제외될 수 있습니다.',
   },
   {
     title: '신고 처리',
@@ -44,15 +44,7 @@ export default function SupportScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color={palette.ink} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <ThemedText style={styles.eyebrow}>SUPPORT</ThemedText>
-            <ThemedText style={styles.title}>고객지원</ThemedText>
-          </View>
-        </View>
+        <DetailPageHeader eyebrow="SUPPORT" title="고객지원" />
 
         <Pressable style={styles.contactCard} onPress={openMail}>
           <View style={styles.contactIcon}>
@@ -60,7 +52,7 @@ export default function SupportScreen() {
           </View>
           <View style={styles.contactCopy}>
             <ThemedText style={styles.contactTitle}>문의하기</ThemedText>
-            <ThemedText style={styles.contactText}>거래, 결제, 신고 문의를 메일로 보내요.</ThemedText>
+            <ThemedText style={styles.contactText}>거래, 결제, 신고 문의를 메일로 보내기</ThemedText>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
         </Pressable>
@@ -90,12 +82,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F5F5F5', flex: 1 },
   scroller: { alignSelf: 'center', maxWidth: 520, width: '100%' },
-  content: { padding: 20 },
-  header: { alignItems: 'center', flexDirection: 'row', marginBottom: 18 },
-  backButton: { alignItems: 'center', height: 40, justifyContent: 'center', marginRight: 10, width: 40 },
-  headerCopy: { flex: 1 },
-  eyebrow: { color: palette.brand, fontSize: 12, fontWeight: '900', marginBottom: 3 },
-  title: { color: palette.ink, fontSize: 25, fontWeight: '900' },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
   contactCard: {
     alignItems: 'center',
     backgroundColor: '#111827',
@@ -114,10 +101,10 @@ const styles = StyleSheet.create({
     width: 42,
   },
   contactCopy: { flex: 1 },
-  contactTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
+  contactTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '900', lineHeight: 22 },
   contactText: { color: '#CBD5E1', fontSize: 12, lineHeight: 17, marginTop: 3 },
   section: { gap: 10 },
-  sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900', marginBottom: 2 },
+  sectionTitle: { color: palette.ink, fontSize: 16, fontWeight: '900', lineHeight: 22, marginBottom: 2 },
   noticeItem: {
     backgroundColor: '#FFFFFF',
     borderColor: palette.line,
@@ -128,7 +115,7 @@ const styles = StyleSheet.create({
     padding: 13,
   },
   noticeCopy: { flex: 1 },
-  noticeTitle: { color: palette.ink, fontSize: 14, fontWeight: '900' },
+  noticeTitle: { color: palette.ink, fontSize: 14, fontWeight: '900', lineHeight: 20 },
   noticeText: { color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
   versionBox: {
     alignItems: 'center',
@@ -139,6 +126,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 16,
   },
-  versionLabel: { color: palette.muted, fontSize: 13, fontWeight: '800' },
-  versionValue: { color: palette.ink, fontSize: 13, fontWeight: '900' },
+  versionLabel: { color: palette.muted, fontSize: 13, fontWeight: '800', lineHeight: 18 },
+  versionValue: { color: palette.ink, fontSize: 13, fontWeight: '900', lineHeight: 18 },
 });
