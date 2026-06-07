@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, DeviceEventEmitter, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ export function AppToastHost() {
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hide = () => {
+  const hide = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -35,7 +35,7 @@ export function AppToastHost() {
       duration: 180,
       useNativeDriver: true,
     }).start(() => setToast(null));
-  };
+  }, [translateY]);
 
   useEffect(() => {
     appSettingsService.getToastSettings().then(setSettings).catch(() => null);
@@ -73,7 +73,7 @@ export function AppToastHost() {
         mass: 0.8,
         useNativeDriver: true,
       }).start();
-      timerRef.current = setTimeout(hide, 2600);
+      timerRef.current = setTimeout(hide, 2000);
     });
 
     return () => {
@@ -83,7 +83,7 @@ export function AppToastHost() {
         clearTimeout(timerRef.current);
       }
     };
-  }, [settings, translateY]);
+  }, [hide, settings, translateY]);
 
   if (!toast) {
     return null;
@@ -102,7 +102,14 @@ export function AppToastHost() {
         },
       ]}
     >
-      <View style={styles.toast}>
+      <Pressable
+        style={styles.toast}
+        onPress={() => {
+          const action = toast.onPress;
+          hide();
+          action?.();
+        }}
+      >
         <View style={[styles.iconWrap, { backgroundColor: `${meta.color}18` }]}>
           <Ionicons name={meta.icon} size={20} color={meta.color} />
         </View>
@@ -117,7 +124,7 @@ export function AppToastHost() {
         <Pressable style={styles.closeButton} onPress={hide}>
           <Ionicons name="close" size={17} color="#667085" />
         </Pressable>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -142,7 +149,7 @@ const styles = StyleSheet.create({
     gap: 10,
     maxWidth: 520,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     shadowColor: '#101828',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.16,
@@ -157,8 +164,8 @@ const styles = StyleSheet.create({
     width: 34,
   },
   copy: { flex: 1 },
-  title: { color: '#101828', fontSize: 14, fontWeight: '900' },
-  message: { color: '#667085', fontSize: 12, lineHeight: 17, marginTop: 2 },
+  title: { color: '#101828', fontSize: 16, fontWeight: '900', lineHeight: 22 },
+  message: { color: '#667085', fontSize: 14, lineHeight: 20, marginTop: 3 },
   closeButton: {
     alignItems: 'center',
     height: 30,

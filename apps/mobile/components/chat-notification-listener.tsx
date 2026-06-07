@@ -40,6 +40,18 @@ export function ChatNotificationListener() {
         category: 'chat',
         title: event.message.senderNickname,
         message: event.message.content,
+        onPress: () => {
+          if (!event.roomId) {
+            return;
+          }
+          router.push({
+            pathname: '/chats/[id]',
+            params: {
+              id: String(event.roomId),
+              nickname: event.message?.senderNickname,
+            },
+          } as any);
+        },
       });
     }).then((socket) => {
       if (closed) {

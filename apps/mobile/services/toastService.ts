@@ -9,6 +9,7 @@ export type AppToastPayload = {
   message?: string;
   type?: AppToastType;
   category?: ToastCategory;
+  onPress?: () => void;
 };
 
 export const showToast = async (payload: AppToastPayload) => {

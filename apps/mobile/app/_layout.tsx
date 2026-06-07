@@ -66,6 +66,12 @@ function RootLayoutNav() {
               }}
             />
             <Stack.Screen
+              name="shipping-info"
+              options={{
+                animation: 'fade_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="support"
               options={{
                 animation: 'fade_from_bottom',

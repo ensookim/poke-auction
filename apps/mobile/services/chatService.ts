@@ -86,7 +86,7 @@ class ChatService {
     } as unknown as Blob);
 
     const response = await this.client.post<{ imageUrl: string }>(
-      '/api/auctions/images',
+      '/api/chats/images',
       formData,
     );
     return response.data.imageUrl;

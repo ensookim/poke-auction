@@ -2,9 +2,9 @@ import { DeviceEventEmitter } from 'react-native';
 
 import { tokenStorage } from '@/services/authService';
 
-const TOAST_ENABLED_KEY = 'settings:toastEnabled';
-const BID_TOAST_ENABLED_KEY = 'settings:toast:bid';
-const CHAT_TOAST_ENABLED_KEY = 'settings:toast:chat';
+const TOAST_ENABLED_KEY = 'settings_toastEnabled';
+const BID_TOAST_ENABLED_KEY = 'settings_toast_bid';
+const CHAT_TOAST_ENABLED_KEY = 'settings_toast_chat';
 
 export type ToastCategory = 'bid' | 'chat' | 'system';
 

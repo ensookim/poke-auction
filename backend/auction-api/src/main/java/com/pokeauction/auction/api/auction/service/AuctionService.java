@@ -119,7 +119,7 @@ public class AuctionService {
             throw new IllegalStateException("차단된 판매자의 경매에는 입찰할 수 없습니다.");
         }
 
-        Long previousWinnerId = auction.getWinnerId();
+        Long previousWinnerId = resolveCurrentLeaderId(auction);
         Bid bid = Bid.builder()
                 .auction(auction)
                 .bidder(bidder)
@@ -144,6 +144,7 @@ public class AuctionService {
         Auction saved = buyNowInternal(auctionId, buyerId, ipAddress, deviceId, userAgent, false);
         AuctionResponse response = toResponse(saved);
         auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
+        notifySellerAuctionWon(saved);
         return response;
     }
 
@@ -153,6 +154,7 @@ public class AuctionService {
         AuctionResponse response = toResponse(saved);
         auctionWebSocketHandler.broadcastUpdate(saved.getId(), response);
         notifySellerPaymentHeld(saved);
+        notifySellerAuctionWon(saved);
         return response;
     }
 
@@ -232,6 +234,10 @@ public class AuctionService {
 
         if (auction.getCreatedBy() == null || !auction.getCreatedBy().getId().equals(userId)) {
             throw new IllegalStateException("본인이 등록한 경매만 삭제할 수 있습니다.");
+        }
+
+        if (auction.getWinnerId() != null || !auction.getBids().isEmpty() || !auction.isActive()) {
+            throw new IllegalStateException("입찰자나 낙찰자가 없는 진행 중 경매만 삭제할 수 있습니다.");
         }
 
         auctionRepository.delete(auction);
@@ -401,6 +407,7 @@ public class AuctionService {
                         saved.getCardName() + " 결제를 진행해주세요.",
                         saved.getId()
                 );
+                notifySellerAuctionWon(saved);
             }
         }
     }
@@ -449,6 +456,33 @@ public class AuctionService {
                 auction.getCardName() + " 입찰가가 " + amount + "원으로 올라갔어요.",
                 auction.getId()
         );
+    }
+
+    private void notifySellerAuctionWon(Auction auction) {
+        if (auction.getCreatedBy() == null || auction.getWinnerId() == null) {
+            return;
+        }
+        pushNotificationService.sendAuctionNotification(
+                auction.getCreatedBy().getId(),
+                "AUCTION_WON",
+                "경매가 낙찰됐어요",
+                auction.getCardName() + " 구매자가 결정됐습니다. 결제와 배송 진행을 확인해주세요.",
+                auction.getId()
+        );
+    }
+
+    private Long resolveCurrentLeaderId(Auction auction) {
+        if (auction.getWinnerId() != null) {
+            return auction.getWinnerId();
+        }
+        if (auction.getBids() == null || auction.getBids().isEmpty()) {
+            return null;
+        }
+        return auction.getBids().stream()
+                .max(Comparator.comparing(Bid::getAmount))
+                .map(Bid::getBidder)
+                .map(User::getId)
+                .orElse(null);
     }
 
     private void notifySellerPaymentHeld(Auction auction) {

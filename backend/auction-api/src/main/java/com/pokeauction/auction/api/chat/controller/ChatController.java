@@ -6,10 +6,18 @@ import com.pokeauction.auction.api.chat.dto.ChatRoomResponse;
 import com.pokeauction.auction.api.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/chats")
@@ -66,6 +74,40 @@ public class ChatController {
         }
     }
 
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, String> uploadImage(
+            @RequestPart("file") MultipartFile file,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletRequest servletRequest
+    ) {
+        resolveUserId(authorization);
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일이 비어 있습니다.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일만 업로드할 수 있습니다.");
+        }
+
+        try {
+            Path uploadDir = Path.of("uploads", "chats").toAbsolutePath().normalize();
+            Files.createDirectories(uploadDir);
+
+            String extension = resolveExtension(file.getOriginalFilename(), contentType);
+            String filename = UUID.randomUUID() + extension;
+            Path target = uploadDir.resolve(filename).normalize();
+            file.transferTo(target);
+
+            String baseUrl = servletRequest.getRequestURL()
+                    .toString()
+                    .replace(servletRequest.getRequestURI(), "");
+            return Map.of("imageUrl", baseUrl + "/uploads/chats/" + filename);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 저장에 실패했습니다.", ex);
+        }
+    }
+
     private Long resolveUserId(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");
@@ -77,5 +119,28 @@ public class ChatController {
         }
 
         return jwtProvider.parseUserId(token);
+    }
+
+    private String resolveExtension(String originalFilename, String contentType) {
+        if (originalFilename != null) {
+            String lower = originalFilename.toLowerCase();
+            if (lower.endsWith(".png")) {
+                return ".png";
+            }
+            if (lower.endsWith(".webp")) {
+                return ".webp";
+            }
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+                return ".jpg";
+            }
+        }
+
+        if ("image/png".equals(contentType)) {
+            return ".png";
+        }
+        if ("image/webp".equals(contentType)) {
+            return ".webp";
+        }
+        return ".jpg";
     }
 }

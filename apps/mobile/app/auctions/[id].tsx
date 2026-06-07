@@ -365,6 +365,7 @@ export default function AuctionDetail() {
       }
       await chatService.createRoom(auction.id).catch(() => null);
       applyAuctionUpdate(paid);
+      router.push({ pathname: '/shipping-info', params: { auctionId: String(auction.id) } } as any);
       Alert.alert(
         '낙찰 완료',
         '즉시 낙찰됐어요. 배송정보를 입력하면 판매자와의 채팅으로 자동 전달됩니다.',
@@ -417,6 +418,7 @@ export default function AuctionDetail() {
       }
       const updated = await auctionService.getAuction(auction.id);
       applyAuctionUpdate(updated);
+      router.push({ pathname: '/shipping-info', params: { auctionId: String(auction.id) } } as any);
       Alert.alert('안전결제 완료', '결제 금액이 구매확정 전까지 안전하게 보관됩니다.');
     } catch (error) {
       if (await handleSessionExpired(error)) {

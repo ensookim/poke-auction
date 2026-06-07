@@ -1178,8 +1178,13 @@ const styles = StyleSheet.create({
   },
   photoActions: {
     flexDirection: 'row',
-    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderColor: palette.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
     marginBottom: 8,
+    padding: 8,
   },
   photoStatusRow: {
     flexDirection: 'row',
@@ -1209,7 +1214,7 @@ const styles = StyleSheet.create({
   },
   photoButton: {
     alignItems: 'center',
-    backgroundColor: palette.surface,
+    backgroundColor: '#F8FAFC',
     borderColor: palette.line,
     borderRadius: 8,
     borderWidth: 1,
@@ -1217,7 +1222,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
-    paddingVertical: 13,
+    minHeight: 48,
+    paddingVertical: 12,
   },
   photoButtonText: {
     color: palette.ink,

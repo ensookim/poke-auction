@@ -12,29 +12,40 @@ const isWeb = Platform.OS === 'web';
 
 export const tokenStorage = {
   async getItem(key: string): Promise<string | null> {
+    const storageKey = normalizeStorageKey(key);
     if (isWeb && typeof window !== 'undefined') {
-      return Promise.resolve(window.localStorage.getItem(key));
+      return Promise.resolve(window.localStorage.getItem(storageKey));
     }
-    return SecureStore.getItemAsync(key);
+    return SecureStore.getItemAsync(storageKey);
   },
 
   async setItem(key: string, value: string): Promise<void> {
+    const storageKey = normalizeStorageKey(key);
     if (isWeb && typeof window !== 'undefined') {
-      window.localStorage.setItem(key, value);
+      window.localStorage.setItem(storageKey, value);
       return;
     }
 
-    await SecureStore.setItemAsync(key, value);
+    await SecureStore.setItemAsync(storageKey, value);
   },
 
   async removeItem(key: string): Promise<void> {
+    const storageKey = normalizeStorageKey(key);
     if (isWeb && typeof window !== 'undefined') {
-      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(storageKey);
       return;
     }
 
-    await SecureStore.deleteItemAsync(key);
+    await SecureStore.deleteItemAsync(storageKey);
   },
+};
+
+const normalizeStorageKey = (key: string) => {
+  const normalized = key.trim().replace(/[^A-Za-z0-9_.-]/g, '_');
+  if (!normalized) {
+    throw new Error('Storage key must not be empty.');
+  }
+  return normalized;
 };
 
 const getKakaoRedirectUri = (): string => {
